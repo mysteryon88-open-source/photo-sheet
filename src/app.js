@@ -1,7 +1,7 @@
 import { canAttemptFullResolutionExport, canvasToJpeg, canvasToPdfBlob, canvasToPng, createPrintController, downloadBlob, getExportFailureDetails } from "./export.js";
 import { translate } from "./i18n.js";
 import { buildSheetPlan, fitSheetPlanToPixels, getCustomGridDefaults, getPhotoIndexFromViewportPoint, resolvePaper } from "./layout.js";
-import { createPhoto, disposePhotos, editPhoto, getPhotoSelectionError, getTotalPhotoPixels, loadPhotosWithLimit, moveItem, removeItem, snapshotPhotosForRender, splitItemsAtLimit } from "./photos.js";
+import { createPhoto, disposePhotos, editPhoto, getImageFilePixelCount, getPhotoSelectionError, getTotalPhotoPixels, loadPhotosWithLimit, moveItem, removeItem, snapshotPhotosForRender, splitItemsAtLimit } from "./photos.js";
 import { renderSheet } from "./renderer.js";
 
 const RENDER_DELAY_MS = 90;
@@ -212,22 +212,12 @@ async function loadPhotos(files, mode) {
   sheetVersion++;
   disableExports();
   showStatus("loadingProgress", { completed: 0, total: accepted.length });
-  let decodedPixelCount = mode === "add" ? getTotalPhotoPixels(photos) : 0;
-  let memoryLimitExceeded = false;
-  const decodePhotoWithinBudget = async file => {
-    const photo = await createPhoto(file);
-    const photoPixels = getTotalPhotoPixels([photo]);
-    if (memoryLimitExceeded || decodedPixelCount + photoPixels > MAX_DECODED_PHOTO_PIXELS) {
-      memoryLimitExceeded = true;
-      disposePhotos([photo]);
-      throw new Error("PHOTO_MEMORY_LIMIT");
-    }
-    decodedPixelCount += photoPixels;
-    return photo;
-  };
-  const results = await loadPhotosWithLimit(accepted, decodePhotoWithinBudget, {
+  const results = await loadPhotosWithLimit(accepted, createPhoto, {
     concurrency: PHOTO_LOAD_CONCURRENCY,
-    isCancelled: () => version !== loadVersion || memoryLimitExceeded,
+    isCancelled: () => version !== loadVersion,
+    getPixelCount: getImageFilePixelCount,
+    maxPixelCount: MAX_DECODED_PHOTO_PIXELS,
+    initialPixelCount: mode === "add" ? getTotalPhotoPixels(photos) : 0,
     onProgress: (completed, total) => {
       if (version === loadVersion) showStatus("loadingProgress", { completed, total });
     }
@@ -237,7 +227,7 @@ async function loadPhotos(files, mode) {
     disposePhotos(loaded);
     return;
   }
-  if (memoryLimitExceeded) {
+  if (results.some(result => result.status === "rejected" && result.reason?.message === "PHOTO_MEMORY_LIMIT")) {
     disposePhotos(loaded);
     if (photos.length > 0) await renderSelection();
     showStatus("photoMemoryLimit");
@@ -503,14 +493,19 @@ async function renderSelection() {
     renderSheet(elements.canvas, photos, previewPlan, elements.cutMarks.checked);
     if (version !== renderVersion) return;
 
-    lastPlan = plan;
+    const hasOverflow = plan.overflowCount > 0;
+    lastPlan = hasOverflow ? null : plan;
     lastPreviewPlan = previewPlan;
-    lastFilename = buildFilename(plan);
+    if (!hasOverflow) lastFilename = buildFilename(plan);
     elements.canvas.hidden = false;
     elements.emptyPreview.hidden = true;
-    elements.saveFile.disabled = false;
-    elements.print.disabled = false;
-    showPlanReady(plan);
+    elements.saveFile.disabled = hasOverflow;
+    elements.print.disabled = hasOverflow;
+    if (hasOverflow) {
+      showStatus("gridTooSmall", { selected: photos.length, capacity: plan.cells.length });
+    } else {
+      showPlanReady(plan);
+    }
   } catch (error) {
     if (version !== renderVersion) return;
     lastPreviewPlan = null;
@@ -538,7 +533,8 @@ function readPlan() {
     photoWidthMm: Number(elements.photoWidth.value),
     photoHeightMm: Number(elements.photoHeight.value),
     photoFit: elements.gridMode.value === "fixed" ? elements.photoFit.value : "contain",
-    photoCount: photos.length
+    photoCount: photos.length,
+    allowOverflow: true
   });
 }
 

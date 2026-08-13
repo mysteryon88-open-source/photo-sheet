@@ -46,13 +46,13 @@ const messages = {
       "Ready: {width} × {height} px, {columns} × {rows} grid, filled cells: {copies}.",
     needPhotos: "Choose at least one supported JPG, PNG, WEBP, or BMP image.",
     photoMemoryLimit: "These photos are too large to open together. Choose fewer or lower-resolution files.",
-    gridTooSmall: "Selected: {selected}. Available cells: {capacity}. Increase the grid, reduce the cell size, or remove the extras.",
+    gridTooSmall: "Selected: {selected}. The first {capacity} are shown. Right-click a photo to remove it, increase the grid, or reduce the cell size.",
     trimPhotos: "Keep the first {capacity}",
     cellsDoNotFit: "These photo cells do not fit on the selected paper.",
     invalidPhotoSize: "Enter a photo width and height of at least 5 mm.",
     outputTooLargeTitle: "This file is too large for the browser",
     outputTooLargeDetail:
-      "A {width} × {height} px canvas needs about {memoryGb} GB before PNG encoding. Choose {recommendedDpi} DPI or a smaller paper size.",
+      "A {width} × {height} px canvas needs about {memoryGb} GB before encoding the file. Choose {recommendedDpi} DPI or a smaller paper size.",
     exportFailedTitle: "The file could not be saved",
     exportFailedDetail:
       "The browser could not create a {width} × {height} px file. Try a lower DPI, another format, or reload the page.",
@@ -110,13 +110,13 @@ const messages = {
       "Готово: {width} × {height} px, сетка {columns} × {rows}, заполнено ячеек: {copies}.",
     needPhotos: "Выберите хотя бы одно изображение JPG, PNG, WEBP или BMP.",
     photoMemoryLimit: "Эти фотографии слишком велики для одновременного открытия. Выберите меньше файлов или версии с меньшим разрешением.",
-    gridTooSmall: "Выбрано: {selected}. Помещается: {capacity}. Увеличьте сетку, уменьшите размер ячейки или удалите лишние фото.",
+    gridTooSmall: "Выбрано: {selected}. Показаны первые {capacity}. Нажмите правой кнопкой на фото, чтобы удалить его, увеличьте сетку или уменьшите размер ячейки.",
     trimPhotos: "Оставить первые {capacity}",
     cellsDoNotFit: "Ячейки такого размера не помещаются на выбранной бумаге.",
     invalidPhotoSize: "Укажите ширину и высоту фотографии не меньше 5 мм.",
     outputTooLargeTitle: "Такой файл слишком большой для браузера",
     outputTooLargeDetail:
-      "Холст {width} × {height} px требует около {memoryGb} ГБ ещё до создания PNG. Выберите {recommendedDpi} DPI или бумагу меньшего формата.",
+      "Холст {width} × {height} px требует около {memoryGb} ГБ ещё до кодирования файла. Выберите {recommendedDpi} DPI или бумагу меньшего формата.",
     exportFailedTitle: "Не удалось сохранить файл",
     exportFailedDetail:
       "Браузер не смог создать файл {width} × {height} px. Уменьшите DPI, выберите другой формат или перезагрузите страницу.",

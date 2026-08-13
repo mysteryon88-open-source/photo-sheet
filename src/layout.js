@@ -55,7 +55,8 @@ export function buildSheetPlan({
   photoWidthMm,
   photoHeightMm,
   photoFit,
-  photoCount
+  photoCount,
+  allowOverflow = false
 }) {
   const scale = Number(dpi) / 25.4;
   const margin = Math.max(0, Number(marginMm));
@@ -93,7 +94,7 @@ export function buildSheetPlan({
   const [columnCount, rowCount] = grid;
   if (columnCount < 1 || rowCount < 1) throw new Error("CELLS_DO_NOT_FIT");
   const slotCount = columnCount * rowCount;
-  if (photoCount > 1 && slotCount < photoCount) {
+  if (!allowOverflow && photoCount > 1 && slotCount < photoCount) {
     const error = new Error("GRID_TOO_SMALL");
     error.capacity = slotCount;
     error.selected = photoCount;
@@ -108,7 +109,7 @@ export function buildSheetPlan({
   const startXmm = margin + (availableWidth - occupiedWidthMm) / 2;
   const startYmm = margin + (availableHeight - occupiedHeightMm) / 2;
 
-  const filledCellCount = photoCount === 1 ? slotCount : photoCount;
+  const filledCellCount = photoCount === 1 ? slotCount : Math.min(photoCount, slotCount);
   const cells = Array.from({ length: filledCellCount }, (_, index) => {
     const column = index % columnCount;
     const row = Math.floor(index / columnCount);
@@ -135,7 +136,8 @@ export function buildSheetPlan({
     scale,
     marginMm: margin,
     gapMm: gap,
-    photoFit: photoFit === "cover" ? "cover" : "contain"
+    photoFit: photoFit === "cover" ? "cover" : "contain",
+    overflowCount: Math.max(0, photoCount - slotCount)
   };
 }
 

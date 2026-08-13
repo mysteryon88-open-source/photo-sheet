@@ -6,6 +6,7 @@ import * as photoUtils from "../src/photos.js";
 import { buildPdf } from "../src/pdf.js";
 import * as dpiMetadata from "../src/png-dpi.js";
 import * as exportUtils from "../src/export.js";
+import { translate } from "../src/i18n.js";
 import { renderSheet } from "../src/renderer.js";
 
 const { buildSheetPlan, getCutMarkSegments, resolvePaper } = layout;
@@ -196,6 +197,25 @@ test("photo-size layout rejects more distinct photos than the sheet capacity", (
   }), error => error.message === "GRID_TOO_SMALL" && error.capacity === 30 && error.selected === 31);
 });
 
+test("photo-size layout can keep a capacity-limited preview when photos overflow", () => {
+  const plan = buildSheetPlan({
+    paper: { widthMm: 210, heightMm: 297 },
+    dpi: 300,
+    marginMm: 5,
+    gapMm: 2,
+    gridMode: "fixed",
+    columns: 1,
+    rows: 1,
+    photoWidthMm: 35,
+    photoHeightMm: 45,
+    photoCount: 31,
+    allowOverflow: true
+  });
+
+  assert.deepEqual([plan.columns, plan.rows, plan.cells.length, plan.overflowCount], [5, 6, 30, 1]);
+  assert.deepEqual(plan.cells.map(cell => cell.photoIndex), Array.from({ length: 30 }, (_, index) => index));
+});
+
 test("photo-size layout keeps an exact decimal-boundary column", () => {
   const plan = buildSheetPlan({
     paper: { widthMm: 90, heightMm: 130 },
@@ -288,6 +308,18 @@ test("A3 at 1200 DPI produces an actionable large-export error", () => {
   });
 });
 
+test("large-export guidance stays accurate for every output format", () => {
+  const message = translate("en", "outputTooLargeDetail", {
+    width: 19_843,
+    height: 14_031,
+    memoryGb: "1.1",
+    recommendedDpi: 600
+  });
+
+  assert.doesNotMatch(message, /PNG|JPG|PDF/);
+  assert.match(message, /before encoding the file/);
+});
+
 test("single-canvas export rejects A3 at 1200 DPI but still allows A4", () => {
   const canAttempt = exportUtils.canAttemptFullResolutionExport;
 
@@ -375,6 +407,53 @@ test("photo decoding stops scheduling work after cancellation", async () => {
   assert.ok(started <= 2);
   assert.equal(results.length, 8);
   assert.ok(results.slice(started).every(result => result.status === "cancelled"));
+});
+
+test("photo loading rejects an over-budget file before decoding it", async () => {
+  let decoded = 0;
+  const results = await photoUtils.loadPhotosWithLimit?.(
+    [{ pixels: 241_000_000 }],
+    async file => {
+      decoded++;
+      return file;
+    },
+    {
+      getPixelCount: file => file.pixels,
+      maxPixelCount: 240_000_000
+    }
+  );
+
+  assert.ok(results, "loadPhotosWithLimit must be exported");
+  assert.equal(decoded, 0);
+  assert.equal(results[0].status, "rejected");
+  assert.equal(results[0].reason?.message, "PHOTO_MEMORY_LIMIT");
+});
+
+test("photo pixel count is read from supported file headers without decoding", async () => {
+  const png = Uint8Array.from(Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+    "base64"
+  ));
+  const jpeg = Uint8Array.from([
+    0xff, 0xd8,
+    0xff, 0xc0, 0x00, 0x11, 0x08, 0x00, 0x03, 0x00, 0x04,
+    0x03, 0x01, 0x11, 0x00, 0x02, 0x11, 0x00, 0x03, 0x11, 0x00,
+    0xff, 0xd9
+  ]);
+  const webp = new Uint8Array(30);
+  webp.set(new TextEncoder().encode("RIFF"), 0);
+  webp.set(new TextEncoder().encode("WEBPVP8X"), 8);
+  webp.set([0x03, 0x00, 0x00, 0x02, 0x00, 0x00], 24);
+  const bmp = new Uint8Array(26);
+  bmp.set(new TextEncoder().encode("BM"), 0);
+  new DataView(bmp.buffer).setUint32(14, 40, true);
+  new DataView(bmp.buffer).setInt32(18, 4, true);
+  new DataView(bmp.buffer).setInt32(22, 3, true);
+
+  assert.equal(await photoUtils.getImageFilePixelCount?.(new Blob([png], { type: "image/png" })), 1);
+  assert.equal(await photoUtils.getImageFilePixelCount?.(new Blob([jpeg], { type: "image/jpeg" })), 12);
+  assert.equal(await photoUtils.getImageFilePixelCount?.(new Blob([webp], { type: "image/webp" })), 12);
+  assert.equal(await photoUtils.getImageFilePixelCount?.(new Blob([bmp], { type: "image/bmp" })), 12);
 });
 
 test("photo render snapshots isolate later edit changes", () => {

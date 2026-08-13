@@ -52,13 +52,13 @@
           "Ready: {width} × {height} px, {columns} × {rows} grid, filled cells: {copies}.",
         needPhotos: "Choose at least one supported JPG, PNG, WEBP, or BMP image.",
         photoMemoryLimit: "These photos are too large to open together. Choose fewer or lower-resolution files.",
-        gridTooSmall: "Selected: {selected}. Available cells: {capacity}. Increase the grid, reduce the cell size, or remove the extras.",
+        gridTooSmall: "Selected: {selected}. The first {capacity} are shown. Right-click a photo to remove it, increase the grid, or reduce the cell size.",
         trimPhotos: "Keep the first {capacity}",
         cellsDoNotFit: "These photo cells do not fit on the selected paper.",
         invalidPhotoSize: "Enter a photo width and height of at least 5 mm.",
         outputTooLargeTitle: "This file is too large for the browser",
         outputTooLargeDetail:
-          "A {width} × {height} px canvas needs about {memoryGb} GB before PNG encoding. Choose {recommendedDpi} DPI or a smaller paper size.",
+          "A {width} × {height} px canvas needs about {memoryGb} GB before encoding the file. Choose {recommendedDpi} DPI or a smaller paper size.",
         exportFailedTitle: "The file could not be saved",
         exportFailedDetail:
           "The browser could not create a {width} × {height} px file. Try a lower DPI, another format, or reload the page.",
@@ -116,13 +116,13 @@
           "Готово: {width} × {height} px, сетка {columns} × {rows}, заполнено ячеек: {copies}.",
         needPhotos: "Выберите хотя бы одно изображение JPG, PNG, WEBP или BMP.",
         photoMemoryLimit: "Эти фотографии слишком велики для одновременного открытия. Выберите меньше файлов или версии с меньшим разрешением.",
-        gridTooSmall: "Выбрано: {selected}. Помещается: {capacity}. Увеличьте сетку, уменьшите размер ячейки или удалите лишние фото.",
+        gridTooSmall: "Выбрано: {selected}. Показаны первые {capacity}. Нажмите правой кнопкой на фото, чтобы удалить его, увеличьте сетку или уменьшите размер ячейки.",
         trimPhotos: "Оставить первые {capacity}",
         cellsDoNotFit: "Ячейки такого размера не помещаются на выбранной бумаге.",
         invalidPhotoSize: "Укажите ширину и высоту фотографии не меньше 5 мм.",
         outputTooLargeTitle: "Такой файл слишком большой для браузера",
         outputTooLargeDetail:
-          "Холст {width} × {height} px требует около {memoryGb} ГБ ещё до создания PNG. Выберите {recommendedDpi} DPI или бумагу меньшего формата.",
+          "Холст {width} × {height} px требует около {memoryGb} ГБ ещё до кодирования файла. Выберите {recommendedDpi} DPI или бумагу меньшего формата.",
         exportFailedTitle: "Не удалось сохранить файл",
         exportFailedDetail:
           "Браузер не смог создать файл {width} × {height} px. Уменьшите DPI, выберите другой формат или перезагрузите страницу.",
@@ -203,7 +203,8 @@
       photoWidthMm,
       photoHeightMm,
       photoFit,
-      photoCount
+      photoCount,
+      allowOverflow = false
     }) {
       const scale = Number(dpi) / 25.4;
       const margin = Math.max(0, Number(marginMm));
@@ -241,7 +242,7 @@
       const [columnCount, rowCount] = grid;
       if (columnCount < 1 || rowCount < 1) throw new Error("CELLS_DO_NOT_FIT");
       const slotCount = columnCount * rowCount;
-      if (photoCount > 1 && slotCount < photoCount) {
+      if (!allowOverflow && photoCount > 1 && slotCount < photoCount) {
         const error = new Error("GRID_TOO_SMALL");
         error.capacity = slotCount;
         error.selected = photoCount;
@@ -256,7 +257,7 @@
       const startXmm = margin + (availableWidth - occupiedWidthMm) / 2;
       const startYmm = margin + (availableHeight - occupiedHeightMm) / 2;
 
-      const filledCellCount = photoCount === 1 ? slotCount : photoCount;
+      const filledCellCount = photoCount === 1 ? slotCount : Math.min(photoCount, slotCount);
       const cells = Array.from({ length: filledCellCount }, (_, index) => {
         const column = index % columnCount;
         const row = Math.floor(index / columnCount);
@@ -283,7 +284,8 @@
         scale,
         marginMm: margin,
         gapMm: gap,
-        photoFit: photoFit === "cover" ? "cover" : "contain"
+        photoFit: photoFit === "cover" ? "cover" : "contain",
+        overflowCount: Math.max(0, photoCount - slotCount)
       };
     }
 
@@ -373,19 +375,33 @@
     async function loadPhotosWithLimit(files, decoder, {
       concurrency = 3,
       onProgress = () => {},
-      isCancelled = () => false
+      isCancelled = () => false,
+      getPixelCount = null,
+      maxPixelCount = Infinity,
+      initialPixelCount = 0
     } = {}) {
       const items = [...files];
       const results = Array(items.length);
       const workerCount = Math.min(items.length, Math.max(1, Math.trunc(Number(concurrency)) || 1));
       let nextIndex = 0;
       let completed = 0;
+      let reservedPixelCount = Math.max(0, Number(initialPixelCount) || 0);
+      let pixelBudgetExceeded = false;
 
       const worker = async () => {
         while (nextIndex < items.length) {
-          if (isCancelled()) return;
+          if (isCancelled() || pixelBudgetExceeded) return;
           const index = nextIndex++;
           try {
+            if (getPixelCount) {
+              const pixelCount = Number(await getPixelCount(items[index]));
+              if (!Number.isFinite(pixelCount) || pixelCount <= 0) throw new Error("IMAGE_DIMENSIONS_UNAVAILABLE");
+              if (reservedPixelCount + pixelCount > Number(maxPixelCount)) {
+                pixelBudgetExceeded = true;
+                throw new Error("PHOTO_MEMORY_LIMIT");
+              }
+              reservedPixelCount += pixelCount;
+            }
             results[index] = { status: "fulfilled", value: await decoder(items[index]) };
           } catch (reason) {
             results[index] = { status: "rejected", reason };
@@ -400,6 +416,26 @@
         if (!results[index]) results[index] = { status: "cancelled" };
       }
       return results;
+    }
+
+    async function getImageFilePixelCount(file) {
+      const header = new Uint8Array(await file.slice(0, 32).arrayBuffer());
+      let dimensions = null;
+
+      if (matchesBytes(header, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) {
+        dimensions = [readUint32(header, 16, false), readUint32(header, 20, false)];
+      } else if (matchesBytes(header, [0xff, 0xd8])) {
+        dimensions = await readJpegDimensions(file);
+      } else if (matchesAscii(header, 0, "RIFF") && matchesAscii(header, 8, "WEBP")) {
+        dimensions = readWebpDimensions(header);
+      } else if (matchesAscii(header, 0, "BM")) {
+        dimensions = readBmpDimensions(header);
+      }
+
+      const [width, height] = dimensions ?? [];
+      const pixelCount = Number(width) * Number(height);
+      if (!Number.isSafeInteger(pixelCount) || pixelCount <= 0) throw new Error("IMAGE_DIMENSIONS_UNAVAILABLE");
+      return pixelCount;
     }
 
     function snapshotPhotosForRender(photos) {
@@ -469,7 +505,84 @@
       });
     }
 
-    return { getPhotoSelectionError, loadPhotosWithLimit, snapshotPhotosForRender, getTotalPhotoPixels, splitItemsAtLimit, moveItem, removeItem, createPhoto, disposePhotos, editPhoto };
+    async function readJpegDimensions(file) {
+      const sofMarkers = new Set([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf]);
+      let offset = 2;
+      while (offset < file.size) {
+        const bytes = new Uint8Array(await file.slice(offset, offset + 16).arrayBuffer());
+        if (bytes.length < 4 || bytes[0] !== 0xff) break;
+        let markerIndex = 1;
+        while (bytes[markerIndex] === 0xff) markerIndex++;
+        const marker = bytes[markerIndex];
+        if (marker === 0xd8 || marker === 0xd9 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+          offset += markerIndex + 1;
+          continue;
+        }
+        const segmentLength = (bytes[markerIndex + 1] << 8) | bytes[markerIndex + 2];
+        if (segmentLength < 2) break;
+        if (sofMarkers.has(marker)) {
+          return [
+            (bytes[markerIndex + 6] << 8) | bytes[markerIndex + 7],
+            (bytes[markerIndex + 4] << 8) | bytes[markerIndex + 5]
+          ];
+        }
+        if (marker === 0xda) break;
+        offset += markerIndex + 1 + segmentLength;
+      }
+      return null;
+    }
+
+    function readWebpDimensions(bytes) {
+      const chunk = String.fromCharCode(...bytes.slice(12, 16));
+      if (chunk === "VP8X" && bytes.length >= 30) {
+        return [1 + readUint24(bytes, 24), 1 + readUint24(bytes, 27)];
+      }
+      if (chunk === "VP8L" && bytes.length >= 25 && bytes[20] === 0x2f) {
+        return [
+          1 + bytes[21] + ((bytes[22] & 0x3f) << 8),
+          1 + (bytes[22] >> 6) + (bytes[23] << 2) + ((bytes[24] & 0x0f) << 10)
+        ];
+      }
+      if (chunk === "VP8 " && bytes.length >= 30 && matchesBytes(bytes, [0x9d, 0x01, 0x2a], 23)) {
+        return [
+          (bytes[26] | (bytes[27] << 8)) & 0x3fff,
+          (bytes[28] | (bytes[29] << 8)) & 0x3fff
+        ];
+      }
+      return null;
+    }
+
+    function readBmpDimensions(bytes) {
+      const dibSize = readUint32(bytes, 14, true);
+      if (dibSize === 12) return [readUint16(bytes, 18, true), readUint16(bytes, 20, true)];
+      return [Math.abs(readInt32(bytes, 18, true)), Math.abs(readInt32(bytes, 22, true))];
+    }
+
+    function matchesAscii(bytes, offset, value) {
+      return [...value].every((character, index) => bytes[offset + index] === character.charCodeAt(0));
+    }
+
+    function matchesBytes(bytes, expected, offset = 0) {
+      return expected.every((value, index) => bytes[offset + index] === value);
+    }
+
+    function readUint16(bytes, offset, littleEndian) {
+      return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint16(offset, littleEndian);
+    }
+
+    function readUint24(bytes, offset) {
+      return bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16);
+    }
+
+    function readUint32(bytes, offset, littleEndian) {
+      return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(offset, littleEndian);
+    }
+
+    function readInt32(bytes, offset, littleEndian) {
+      return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getInt32(offset, littleEndian);
+    }
+
+    return { getPhotoSelectionError, loadPhotosWithLimit, getImageFilePixelCount, snapshotPhotosForRender, getTotalPhotoPixels, splitItemsAtLimit, moveItem, removeItem, createPhoto, disposePhotos, editPhoto };
   })();
 
   modules.pngDpi = (() => {
@@ -800,7 +913,7 @@
     const { canAttemptFullResolutionExport, canvasToJpeg, canvasToPdfBlob, canvasToPng, createPrintController, downloadBlob, getExportFailureDetails } = modules.export;
     const { translate } = modules.i18n;
     const { buildSheetPlan, fitSheetPlanToPixels, getCustomGridDefaults, getPhotoIndexFromViewportPoint, resolvePaper } = modules.layout;
-    const { createPhoto, disposePhotos, editPhoto, getPhotoSelectionError, getTotalPhotoPixels, loadPhotosWithLimit, moveItem, removeItem, snapshotPhotosForRender, splitItemsAtLimit } = modules.photos;
+    const { createPhoto, disposePhotos, editPhoto, getImageFilePixelCount, getPhotoSelectionError, getTotalPhotoPixels, loadPhotosWithLimit, moveItem, removeItem, snapshotPhotosForRender, splitItemsAtLimit } = modules.photos;
     const { renderSheet } = modules.renderer;
 
     const RENDER_DELAY_MS = 90;
@@ -1011,22 +1124,12 @@
       sheetVersion++;
       disableExports();
       showStatus("loadingProgress", { completed: 0, total: accepted.length });
-      let decodedPixelCount = mode === "add" ? getTotalPhotoPixels(photos) : 0;
-      let memoryLimitExceeded = false;
-      const decodePhotoWithinBudget = async file => {
-        const photo = await createPhoto(file);
-        const photoPixels = getTotalPhotoPixels([photo]);
-        if (memoryLimitExceeded || decodedPixelCount + photoPixels > MAX_DECODED_PHOTO_PIXELS) {
-          memoryLimitExceeded = true;
-          disposePhotos([photo]);
-          throw new Error("PHOTO_MEMORY_LIMIT");
-        }
-        decodedPixelCount += photoPixels;
-        return photo;
-      };
-      const results = await loadPhotosWithLimit(accepted, decodePhotoWithinBudget, {
+      const results = await loadPhotosWithLimit(accepted, createPhoto, {
         concurrency: PHOTO_LOAD_CONCURRENCY,
-        isCancelled: () => version !== loadVersion || memoryLimitExceeded,
+        isCancelled: () => version !== loadVersion,
+        getPixelCount: getImageFilePixelCount,
+        maxPixelCount: MAX_DECODED_PHOTO_PIXELS,
+        initialPixelCount: mode === "add" ? getTotalPhotoPixels(photos) : 0,
         onProgress: (completed, total) => {
           if (version === loadVersion) showStatus("loadingProgress", { completed, total });
         }
@@ -1036,7 +1139,7 @@
         disposePhotos(loaded);
         return;
       }
-      if (memoryLimitExceeded) {
+      if (results.some(result => result.status === "rejected" && result.reason?.message === "PHOTO_MEMORY_LIMIT")) {
         disposePhotos(loaded);
         if (photos.length > 0) await renderSelection();
         showStatus("photoMemoryLimit");
@@ -1302,14 +1405,19 @@
         renderSheet(elements.canvas, photos, previewPlan, elements.cutMarks.checked);
         if (version !== renderVersion) return;
 
-        lastPlan = plan;
+        const hasOverflow = plan.overflowCount > 0;
+        lastPlan = hasOverflow ? null : plan;
         lastPreviewPlan = previewPlan;
-        lastFilename = buildFilename(plan);
+        if (!hasOverflow) lastFilename = buildFilename(plan);
         elements.canvas.hidden = false;
         elements.emptyPreview.hidden = true;
-        elements.saveFile.disabled = false;
-        elements.print.disabled = false;
-        showPlanReady(plan);
+        elements.saveFile.disabled = hasOverflow;
+        elements.print.disabled = hasOverflow;
+        if (hasOverflow) {
+          showStatus("gridTooSmall", { selected: photos.length, capacity: plan.cells.length });
+        } else {
+          showPlanReady(plan);
+        }
       } catch (error) {
         if (version !== renderVersion) return;
         lastPreviewPlan = null;
@@ -1337,7 +1445,8 @@
         photoWidthMm: Number(elements.photoWidth.value),
         photoHeightMm: Number(elements.photoHeight.value),
         photoFit: elements.gridMode.value === "fixed" ? elements.photoFit.value : "contain",
-        photoCount: photos.length
+        photoCount: photos.length,
+        allowOverflow: true
       });
     }
 
