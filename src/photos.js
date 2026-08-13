@@ -1,8 +1,3 @@
-export function getPhotoSelectionError(selectedCount, acceptedCount) {
-  if (acceptedCount < 1 || acceptedCount !== selectedCount) return "needPhotos";
-  return null;
-}
-
 export async function loadPhotosWithLimit(files, decoder, {
   concurrency = 3,
   onProgress = () => {},
@@ -79,25 +74,6 @@ export function getTotalPhotoPixels(photos) {
     const height = Number(photo.source.height || photo.source.naturalHeight) || 0;
     return total + width * height;
   }, 0);
-}
-
-export function splitItemsAtLimit(items, limit) {
-  const splitIndex = Math.max(0, Math.trunc(Number(limit)) || 0);
-  return { kept: items.slice(0, splitIndex), removed: items.slice(splitIndex) };
-}
-
-export function moveItem(items, fromIndex, toIndex) {
-  const copy = [...items];
-  if (fromIndex === toIndex || fromIndex < 0 || fromIndex >= copy.length || toIndex < 0 || toIndex >= copy.length) return copy;
-  const [item] = copy.splice(fromIndex, 1);
-  copy.splice(toIndex, 0, item);
-  return copy;
-}
-
-export function removeItem(items, index) {
-  const copy = [...items];
-  if (index >= 0 && index < copy.length) copy.splice(index, 1);
-  return copy;
 }
 
 export async function createPhoto(file) {

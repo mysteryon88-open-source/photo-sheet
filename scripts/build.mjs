@@ -2,7 +2,7 @@ import { readFile, writeFile } from "node:fs/promises";
 
 const files = ["i18n.js", "layout.js", "photos.js", "png-dpi.js", "pdf.js", "renderer.js", "export.js", "app.js"];
 const moduleId = file => file.replace(/\.js$/, "").replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
-const indent = source => source.split("\n").map(line => line ? `    ${line}` : "").join("\n");
+const indent = source => source.split(/\r?\n/).map(line => line ? `    ${line}` : "").join("\n");
 const modules = [];
 
 for (const file of files) {

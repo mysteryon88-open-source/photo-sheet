@@ -40,10 +40,6 @@ export function getPhotoIndexFromViewportPoint(cells, viewport, canvas, point) {
   );
 }
 
-export function getCustomGridDefaults(plan, columns, rows) {
-  return plan ? { columns: plan.columns, rows: plan.rows } : { columns, rows };
-}
-
 export function buildSheetPlan({
   paper,
   dpi,

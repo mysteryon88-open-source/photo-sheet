@@ -1,7 +1,7 @@
 import { canAttemptFullResolutionExport, canvasToJpeg, canvasToPdfBlob, canvasToPng, createPrintController, downloadBlob, getExportFailureDetails } from "./export.js";
 import { translate } from "./i18n.js";
-import { buildSheetPlan, fitSheetPlanToPixels, getCustomGridDefaults, getPhotoIndexFromViewportPoint, resolvePaper } from "./layout.js";
-import { createPhoto, disposePhotos, editPhoto, getImageFilePixelCount, getPhotoSelectionError, getTotalPhotoPixels, loadPhotosWithLimit, moveItem, removeItem, snapshotPhotosForRender, splitItemsAtLimit } from "./photos.js";
+import { buildSheetPlan, fitSheetPlanToPixels, getPhotoIndexFromViewportPoint, resolvePaper } from "./layout.js";
+import { createPhoto, disposePhotos, editPhoto, getImageFilePixelCount, getTotalPhotoPixels, loadPhotosWithLimit, snapshotPhotosForRender } from "./photos.js";
 import { renderSheet } from "./renderer.js";
 
 const RENDER_DELAY_MS = 90;
@@ -63,13 +63,11 @@ let photos = [];
 let selectedPhotoIndex = 0;
 let lastPlan = null;
 let lastPreviewPlan = null;
-let lastFilename = "photo-sheet";
 let renderTimer = 0;
 let renderVersion = 0;
 let loadVersion = 0;
 let fileInputMode = "replace";
 let statusState = { key: null, values: {} };
-let sheetVersion = 0;
 let outputBusy = false;
 let overflowCapacity = 0;
 
@@ -100,9 +98,8 @@ function bindEvents() {
   for (const select of [elements.paper, elements.orientation, elements.dpi, elements.gridMode, elements.photoFit]) {
     select.addEventListener("change", () => {
       if (select === elements.gridMode && select.value === "custom") {
-        const defaults = getCustomGridDefaults(lastPlan, Number(elements.columns.value), Number(elements.rows.value));
-        elements.columns.value = String(defaults.columns);
-        elements.rows.value = String(defaults.rows);
+        elements.columns.value = String(lastPlan?.columns ?? Number(elements.columns.value));
+        elements.rows.value = String(lastPlan?.rows ?? Number(elements.rows.value));
       }
       syncConditionalControls();
       scheduleRender();
@@ -200,16 +197,14 @@ async function loadPhotos(files, mode) {
   if (outputBusy) return;
   const version = ++loadVersion;
   const accepted = files.filter(isSupportedImage);
-  const selectionError = getPhotoSelectionError(files.length, accepted.length);
-  if (selectionError) {
-    showStatus(selectionError);
+  if (accepted.length < 1 || accepted.length !== files.length) {
+    showStatus("needPhotos");
     return;
   }
 
   clearTimeout(renderTimer);
   closePhotoMenu();
   renderVersion++;
-  sheetVersion++;
   disableExports();
   showStatus("loadingProgress", { completed: 0, total: accepted.length });
   const results = await loadPhotosWithLimit(accepted, createPhoto, {
@@ -437,7 +432,7 @@ function removeSelectedPhoto() {
   if (!removed) return;
   clearTimeout(renderTimer);
   renderVersion++;
-  photos = removeItem(photos, selectedPhotoIndex);
+  photos = photos.toSpliced(selectedPhotoIndex, 1);
   disposePhotos([removed]);
   selectedPhotoIndex = Math.min(selectedPhotoIndex, Math.max(0, photos.length - 1));
   syncConditionalControls();
@@ -456,7 +451,10 @@ function movePhoto(fromIndex, toIndex) {
   if (outputBusy) return;
   if (fromIndex === toIndex || toIndex < 0 || toIndex >= photos.length) return;
   const selectedPhoto = photos[selectedPhotoIndex];
-  photos = moveItem(photos, fromIndex, toIndex);
+  const nextPhotos = [...photos];
+  const [movedPhoto] = nextPhotos.splice(fromIndex, 1);
+  nextPhotos.splice(toIndex, 0, movedPhoto);
+  photos = nextPhotos;
   selectedPhotoIndex = photos.indexOf(selectedPhoto);
   syncPhotoControls();
   scheduleRender();
@@ -473,7 +471,6 @@ function scheduleRender() {
   closePhotoMenu();
   if (photos.length === 0) return;
   renderVersion++;
-  sheetVersion++;
   disableExports();
   showStatus("processing");
   renderTimer = setTimeout(renderSelection, RENDER_DELAY_MS);
@@ -496,7 +493,6 @@ async function renderSelection() {
     const hasOverflow = plan.overflowCount > 0;
     lastPlan = hasOverflow ? null : plan;
     lastPreviewPlan = previewPlan;
-    if (!hasOverflow) lastFilename = buildFilename(plan);
     elements.canvas.hidden = false;
     elements.emptyPreview.hidden = true;
     elements.saveFile.disabled = hasOverflow;
@@ -512,11 +508,7 @@ async function renderSelection() {
     elements.canvas.hidden = true;
     elements.emptyPreview.hidden = false;
     lastPlan = null;
-    const key = errorMessageKey(error);
-    const values = key === "gridTooSmall"
-      ? { selected: error.selected ?? photos.length, capacity: error.capacity ?? 0 }
-      : {};
-    showStatus(key, values);
+    showStatus(errorMessageKey(error));
   }
 }
 
@@ -546,20 +538,19 @@ function buildFilename(plan) {
 async function saveSelectedFile() {
   if (!lastPlan || outputBusy) return;
   const plan = lastPlan;
-  const filename = lastFilename;
+  const filename = buildFilename(plan);
   const format = elements.exportFormat.value;
   const photosSnapshot = snapshotPhotosForRender(photos);
   const drawCutMarks = elements.cutMarks.checked;
-  const version = sheetVersion;
   setOutputBusy(true);
   try {
     showStatus("processing");
     await new Promise(resolve => requestAnimationFrame(resolve));
     const blob = await createOutputBlob(format, plan, photosSnapshot, drawCutMarks);
     downloadBlob(blob, `${filename}.${format}`);
-    if (version === sheetVersion) showPlanReady(plan);
+    showPlanReady(plan);
   } catch {
-    if (version === sheetVersion) showExportFailure(plan);
+    showExportFailure(plan);
   } finally {
     setOutputBusy(false);
   }
@@ -570,16 +561,15 @@ async function printSheet() {
   const plan = lastPlan;
   const photosSnapshot = snapshotPhotosForRender(photos);
   const drawCutMarks = elements.cutMarks.checked;
-  const version = sheetVersion;
   setOutputBusy(true);
   try {
     showStatus("processing");
     await new Promise(resolve => requestAnimationFrame(resolve));
     const png = await createOutputBlob("png", plan, photosSnapshot, drawCutMarks);
     await printController.print(png, plan);
-    if (version === sheetVersion) showPlanReady(plan);
+    showPlanReady(plan);
   } catch {
-    if (version === sheetVersion) showExportFailure(plan);
+    showExportFailure(plan);
   } finally {
     setOutputBusy(false);
   }
@@ -642,9 +632,8 @@ function setOutputBusy(busy) {
 
 function trimPhotosToCapacity() {
   if (outputBusy || overflowCapacity < 1 || photos.length <= overflowCapacity) return;
-  const { kept, removed } = splitItemsAtLimit(photos, overflowCapacity);
-  disposePhotos(removed);
-  photos = kept;
+  disposePhotos(photos.slice(overflowCapacity));
+  photos = photos.slice(0, overflowCapacity);
   selectedPhotoIndex = Math.min(selectedPhotoIndex, photos.length - 1);
   syncPhotoControls();
   renderSelection();
@@ -652,7 +641,6 @@ function trimPhotosToCapacity() {
 
 function errorMessageKey(error) {
   return {
-    GRID_TOO_SMALL: "gridTooSmall",
     CELLS_DO_NOT_FIT: "cellsDoNotFit",
     INVALID_PHOTO_SIZE: "invalidPhotoSize",
     INVALID_PAPER: "invalidPaper"

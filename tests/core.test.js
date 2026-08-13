@@ -10,7 +10,6 @@ import { translate } from "../src/i18n.js";
 import { renderSheet } from "../src/renderer.js";
 
 const { buildSheetPlan, getCutMarkSegments, resolvePaper } = layout;
-const { moveItem } = photoUtils;
 const { setPngDpi } = dpiMetadata;
 
 test("large sheets require an explicit render override", () => {
@@ -328,41 +327,12 @@ test("single-canvas export rejects A3 at 1200 DPI but still allows A4", () => {
   assert.equal(canAttempt({ widthPx: 14_031, heightPx: 9_921 }), true);
 });
 
-test("custom grid defaults to the current sheet dimensions", () => {
-  const getDefaults = layout.getCustomGridDefaults;
-
-  assert.deepEqual(getDefaults?.({ columns: 4, rows: 3 }, 2, 2), { columns: 4, rows: 3 });
-  assert.deepEqual(getDefaults?.(null, 2, 2), { columns: 2, rows: 2 });
-});
-
 test("cut marks create two outward segments at every cell corner", () => {
   const segments = getCutMarkSegments([{ x: 10, y: 20, width: 30, height: 40 }], 3);
 
   assert.equal(segments.length, 8);
   assert.deepEqual(segments[0], [7, 20, 10, 20]);
   assert.deepEqual(segments[7], [40, 60, 40, 63]);
-});
-
-test("moveItem returns a reordered copy without mutating the source", () => {
-  const source = ["a", "b", "c", "d"];
-
-  assert.deepEqual(moveItem(source, 2, 0), ["c", "a", "b", "d"]);
-  assert.deepEqual(source, ["a", "b", "c", "d"]);
-});
-
-test("removeItem removes one photo without mutating the source", () => {
-  const source = ["a", "b", "c"];
-
-  assert.deepEqual(photoUtils.removeItem?.(source, 1), ["a", "c"]);
-  assert.deepEqual(photoUtils.removeItem?.(source, 9), source);
-  assert.deepEqual(source, ["a", "b", "c"]);
-});
-
-test("photo selection accepts any number of supported images", () => {
-  const getError = photoUtils.getPhotoSelectionError;
-
-  assert.equal(getError?.(30, 30, 30), null);
-  assert.equal(getError?.(1, 0, 0), "needPhotos");
 });
 
 test("photo decoding limits concurrency while preserving order and progress", async () => {
@@ -473,13 +443,6 @@ test("decoded photo pixel totals use oriented source dimensions", () => {
     { source: { width: 4_000, height: 3_000 } },
     { source: { naturalWidth: 2_000, naturalHeight: 1_500 } }
   ]), 15_000_000);
-});
-
-test("splitting photos at capacity returns kept and removable items", () => {
-  assert.deepEqual(photoUtils.splitItemsAtLimit?.(["a", "b", "c"], 2), {
-    kept: ["a", "b"],
-    removed: ["c"]
-  });
 });
 
 test("cover placement fills and clips a mismatched photo cell", () => {

@@ -39,7 +39,6 @@ const messages = {
     exportFormatLabel: "File format",
     save: "Save",
     print: "Print",
-    loading: "Opening photos...",
     loadingProgress: "Opening photos: {completed} of {total}...",
     processing: "Building the print sheet...",
     ready:
@@ -103,7 +102,6 @@ const messages = {
     exportFormatLabel: "Формат файла",
     save: "Сохранить",
     print: "Печать",
-    loading: "Открываю фотографии...",
     loadingProgress: "Открываю фотографии: {completed} из {total}...",
     processing: "Собираю лист для печати...",
     ready:

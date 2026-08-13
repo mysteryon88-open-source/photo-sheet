@@ -45,7 +45,6 @@
         exportFormatLabel: "File format",
         save: "Save",
         print: "Print",
-        loading: "Opening photos...",
         loadingProgress: "Opening photos: {completed} of {total}...",
         processing: "Building the print sheet...",
         ready:
@@ -109,7 +108,6 @@
         exportFormatLabel: "Формат файла",
         save: "Сохранить",
         print: "Печать",
-        loading: "Открываю фотографии...",
         loadingProgress: "Открываю фотографии: {completed} из {total}...",
         processing: "Собираю лист для печати...",
         ready:
@@ -186,10 +184,6 @@
         (point.x - left) * canvas.width / canvas.clientWidth,
         (point.y - top) * canvas.height / canvas.clientHeight
       );
-    }
-
-    function getCustomGridDefaults(plan, columns, rows) {
-      return plan ? { columns: plan.columns, rows: plan.rows } : { columns, rows };
     }
 
     function buildSheetPlan({
@@ -363,15 +357,10 @@
       return Number.isFinite(size) ? size : 0;
     }
 
-    return { resolvePaper, getPhotoIndexAtPoint, getPhotoIndexFromViewportPoint, getCustomGridDefaults, buildSheetPlan, fitSheetPlanToPixels, getCutMarkSegments };
+    return { resolvePaper, getPhotoIndexAtPoint, getPhotoIndexFromViewportPoint, buildSheetPlan, fitSheetPlanToPixels, getCutMarkSegments };
   })();
 
   modules.photos = (() => {
-    function getPhotoSelectionError(selectedCount, acceptedCount) {
-      if (acceptedCount < 1 || acceptedCount !== selectedCount) return "needPhotos";
-      return null;
-    }
-
     async function loadPhotosWithLimit(files, decoder, {
       concurrency = 3,
       onProgress = () => {},
@@ -448,25 +437,6 @@
         const height = Number(photo.source.height || photo.source.naturalHeight) || 0;
         return total + width * height;
       }, 0);
-    }
-
-    function splitItemsAtLimit(items, limit) {
-      const splitIndex = Math.max(0, Math.trunc(Number(limit)) || 0);
-      return { kept: items.slice(0, splitIndex), removed: items.slice(splitIndex) };
-    }
-
-    function moveItem(items, fromIndex, toIndex) {
-      const copy = [...items];
-      if (fromIndex === toIndex || fromIndex < 0 || fromIndex >= copy.length || toIndex < 0 || toIndex >= copy.length) return copy;
-      const [item] = copy.splice(fromIndex, 1);
-      copy.splice(toIndex, 0, item);
-      return copy;
-    }
-
-    function removeItem(items, index) {
-      const copy = [...items];
-      if (index >= 0 && index < copy.length) copy.splice(index, 1);
-      return copy;
     }
 
     async function createPhoto(file) {
@@ -582,7 +552,7 @@
       return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getInt32(offset, littleEndian);
     }
 
-    return { getPhotoSelectionError, loadPhotosWithLimit, getImageFilePixelCount, snapshotPhotosForRender, getTotalPhotoPixels, splitItemsAtLimit, moveItem, removeItem, createPhoto, disposePhotos, editPhoto };
+    return { loadPhotosWithLimit, getImageFilePixelCount, snapshotPhotosForRender, getTotalPhotoPixels, createPhoto, disposePhotos, editPhoto };
   })();
 
   modules.pngDpi = (() => {
@@ -912,8 +882,8 @@
   (() => {
     const { canAttemptFullResolutionExport, canvasToJpeg, canvasToPdfBlob, canvasToPng, createPrintController, downloadBlob, getExportFailureDetails } = modules.export;
     const { translate } = modules.i18n;
-    const { buildSheetPlan, fitSheetPlanToPixels, getCustomGridDefaults, getPhotoIndexFromViewportPoint, resolvePaper } = modules.layout;
-    const { createPhoto, disposePhotos, editPhoto, getImageFilePixelCount, getPhotoSelectionError, getTotalPhotoPixels, loadPhotosWithLimit, moveItem, removeItem, snapshotPhotosForRender, splitItemsAtLimit } = modules.photos;
+    const { buildSheetPlan, fitSheetPlanToPixels, getPhotoIndexFromViewportPoint, resolvePaper } = modules.layout;
+    const { createPhoto, disposePhotos, editPhoto, getImageFilePixelCount, getTotalPhotoPixels, loadPhotosWithLimit, snapshotPhotosForRender } = modules.photos;
     const { renderSheet } = modules.renderer;
 
     const RENDER_DELAY_MS = 90;
@@ -975,13 +945,11 @@
     let selectedPhotoIndex = 0;
     let lastPlan = null;
     let lastPreviewPlan = null;
-    let lastFilename = "photo-sheet";
     let renderTimer = 0;
     let renderVersion = 0;
     let loadVersion = 0;
     let fileInputMode = "replace";
     let statusState = { key: null, values: {} };
-    let sheetVersion = 0;
     let outputBusy = false;
     let overflowCapacity = 0;
 
@@ -1012,9 +980,8 @@
       for (const select of [elements.paper, elements.orientation, elements.dpi, elements.gridMode, elements.photoFit]) {
         select.addEventListener("change", () => {
           if (select === elements.gridMode && select.value === "custom") {
-            const defaults = getCustomGridDefaults(lastPlan, Number(elements.columns.value), Number(elements.rows.value));
-            elements.columns.value = String(defaults.columns);
-            elements.rows.value = String(defaults.rows);
+            elements.columns.value = String(lastPlan?.columns ?? Number(elements.columns.value));
+            elements.rows.value = String(lastPlan?.rows ?? Number(elements.rows.value));
           }
           syncConditionalControls();
           scheduleRender();
@@ -1112,16 +1079,14 @@
       if (outputBusy) return;
       const version = ++loadVersion;
       const accepted = files.filter(isSupportedImage);
-      const selectionError = getPhotoSelectionError(files.length, accepted.length);
-      if (selectionError) {
-        showStatus(selectionError);
+      if (accepted.length < 1 || accepted.length !== files.length) {
+        showStatus("needPhotos");
         return;
       }
 
       clearTimeout(renderTimer);
       closePhotoMenu();
       renderVersion++;
-      sheetVersion++;
       disableExports();
       showStatus("loadingProgress", { completed: 0, total: accepted.length });
       const results = await loadPhotosWithLimit(accepted, createPhoto, {
@@ -1349,7 +1314,7 @@
       if (!removed) return;
       clearTimeout(renderTimer);
       renderVersion++;
-      photos = removeItem(photos, selectedPhotoIndex);
+      photos = photos.toSpliced(selectedPhotoIndex, 1);
       disposePhotos([removed]);
       selectedPhotoIndex = Math.min(selectedPhotoIndex, Math.max(0, photos.length - 1));
       syncConditionalControls();
@@ -1368,7 +1333,10 @@
       if (outputBusy) return;
       if (fromIndex === toIndex || toIndex < 0 || toIndex >= photos.length) return;
       const selectedPhoto = photos[selectedPhotoIndex];
-      photos = moveItem(photos, fromIndex, toIndex);
+      const nextPhotos = [...photos];
+      const [movedPhoto] = nextPhotos.splice(fromIndex, 1);
+      nextPhotos.splice(toIndex, 0, movedPhoto);
+      photos = nextPhotos;
       selectedPhotoIndex = photos.indexOf(selectedPhoto);
       syncPhotoControls();
       scheduleRender();
@@ -1385,7 +1353,6 @@
       closePhotoMenu();
       if (photos.length === 0) return;
       renderVersion++;
-      sheetVersion++;
       disableExports();
       showStatus("processing");
       renderTimer = setTimeout(renderSelection, RENDER_DELAY_MS);
@@ -1408,7 +1375,6 @@
         const hasOverflow = plan.overflowCount > 0;
         lastPlan = hasOverflow ? null : plan;
         lastPreviewPlan = previewPlan;
-        if (!hasOverflow) lastFilename = buildFilename(plan);
         elements.canvas.hidden = false;
         elements.emptyPreview.hidden = true;
         elements.saveFile.disabled = hasOverflow;
@@ -1424,11 +1390,7 @@
         elements.canvas.hidden = true;
         elements.emptyPreview.hidden = false;
         lastPlan = null;
-        const key = errorMessageKey(error);
-        const values = key === "gridTooSmall"
-          ? { selected: error.selected ?? photos.length, capacity: error.capacity ?? 0 }
-          : {};
-        showStatus(key, values);
+        showStatus(errorMessageKey(error));
       }
     }
 
@@ -1458,20 +1420,19 @@
     async function saveSelectedFile() {
       if (!lastPlan || outputBusy) return;
       const plan = lastPlan;
-      const filename = lastFilename;
+      const filename = buildFilename(plan);
       const format = elements.exportFormat.value;
       const photosSnapshot = snapshotPhotosForRender(photos);
       const drawCutMarks = elements.cutMarks.checked;
-      const version = sheetVersion;
       setOutputBusy(true);
       try {
         showStatus("processing");
         await new Promise(resolve => requestAnimationFrame(resolve));
         const blob = await createOutputBlob(format, plan, photosSnapshot, drawCutMarks);
         downloadBlob(blob, `${filename}.${format}`);
-        if (version === sheetVersion) showPlanReady(plan);
+        showPlanReady(plan);
       } catch {
-        if (version === sheetVersion) showExportFailure(plan);
+        showExportFailure(plan);
       } finally {
         setOutputBusy(false);
       }
@@ -1482,16 +1443,15 @@
       const plan = lastPlan;
       const photosSnapshot = snapshotPhotosForRender(photos);
       const drawCutMarks = elements.cutMarks.checked;
-      const version = sheetVersion;
       setOutputBusy(true);
       try {
         showStatus("processing");
         await new Promise(resolve => requestAnimationFrame(resolve));
         const png = await createOutputBlob("png", plan, photosSnapshot, drawCutMarks);
         await printController.print(png, plan);
-        if (version === sheetVersion) showPlanReady(plan);
+        showPlanReady(plan);
       } catch {
-        if (version === sheetVersion) showExportFailure(plan);
+        showExportFailure(plan);
       } finally {
         setOutputBusy(false);
       }
@@ -1554,9 +1514,8 @@
 
     function trimPhotosToCapacity() {
       if (outputBusy || overflowCapacity < 1 || photos.length <= overflowCapacity) return;
-      const { kept, removed } = splitItemsAtLimit(photos, overflowCapacity);
-      disposePhotos(removed);
-      photos = kept;
+      disposePhotos(photos.slice(overflowCapacity));
+      photos = photos.slice(0, overflowCapacity);
       selectedPhotoIndex = Math.min(selectedPhotoIndex, photos.length - 1);
       syncPhotoControls();
       renderSelection();
@@ -1564,7 +1523,6 @@
 
     function errorMessageKey(error) {
       return {
-        GRID_TOO_SMALL: "gridTooSmall",
         CELLS_DO_NOT_FIT: "cellsDoNotFit",
         INVALID_PHOTO_SIZE: "invalidPhotoSize",
         INVALID_PAPER: "invalidPaper"
