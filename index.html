@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Arrange photos on a print-ready sheet and export PNG, JPG, or PDF locally in your browser.">
   <link rel="icon" type="image/png" href="photo-sheet-icon.png">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260811">
   <title>Photo Sheet</title>
 </head>
 <body>
@@ -86,6 +86,7 @@
             <span data-i18n="gridModeLabel">Сетка</span>
             <select id="gridMode">
               <option value="auto" data-i18n="gridAuto">Автоматическая</option>
+              <option value="fixed" data-i18n="gridFixed">По размеру ячейки</option>
               <option value="custom" data-i18n="gridCustom">Своя</option>
             </select>
           </label>
@@ -94,11 +95,29 @@
         <div id="customGridFields" class="inline-fields" hidden>
           <label class="control compact-control">
             <span data-i18n="columnsLabel">Столбцы</span>
-            <input id="columns" type="number" min="1" max="10" value="2" step="1">
+            <input id="columns" type="number" min="1" max="100" value="2" step="1">
           </label>
           <label class="control compact-control">
             <span data-i18n="rowsLabel">Строки</span>
-            <input id="rows" type="number" min="1" max="10" value="2" step="1">
+            <input id="rows" type="number" min="1" max="100" value="2" step="1">
+          </label>
+        </div>
+
+        <div id="photoSizeFields" class="inline-fields" hidden>
+          <label class="control compact-control">
+            <span data-i18n="photoWidthLabel">Ширина ячейки, мм</span>
+            <input id="photoWidth" type="number" min="5" max="500" value="35" step="0.1" inputmode="decimal">
+          </label>
+          <label class="control compact-control">
+            <span data-i18n="photoHeightLabel">Высота ячейки, мм</span>
+            <input id="photoHeight" type="number" min="5" max="500" value="45" step="0.1" inputmode="decimal">
+          </label>
+          <label class="control compact-control full-width-control">
+            <span data-i18n="photoFitLabel">Размещение в ячейке</span>
+            <select id="photoFit">
+              <option value="contain" data-i18n="photoFitContain">Вписать целиком</option>
+              <option value="cover" data-i18n="photoFitCover">Заполнить с обрезкой</option>
+            </select>
           </label>
         </div>
 
@@ -113,12 +132,15 @@
           <button id="replacePhotos" type="button" data-i18n="choosePhotos">Выбрать фотографии</button>
           <button id="addPhotos" class="secondary-button" type="button" data-i18n="addPhotos" hidden>Добавить фото</button>
         </div>
-        <p data-i18n="hint">Перетащите от 1 до 12 JPG, PNG, WEBP или BMP на холст, чтобы добавить</p>
+        <p data-i18n="hint">Перетащите JPG, PNG, WEBP или BMP на холст, чтобы добавить</p>
       </div>
       <input id="files" type="file" accept="image/jpeg,image/png,image/webp,image/bmp" multiple hidden>
 
       <div class="sidebar-footer">
         <p id="status" class="status" role="status" aria-live="polite"></p>
+        <div id="statusActions" class="status-actions" hidden>
+          <button id="trimPhotos" class="secondary-button" type="button"></button>
+        </div>
         <div class="export-actions">
           <label class="export-format">
             <span class="sr-only" data-i18n="exportFormatLabel">Формат файла</span>

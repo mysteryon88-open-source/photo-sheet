@@ -1,6 +1,31 @@
 import { buildPdf } from "./pdf.js";
 import { setJpegDpi, setPngDpi } from "./png-dpi.js";
 
+const LARGE_OUTPUT_PIXELS = 64_000_000;
+const MAX_SINGLE_CANVAS_PIXELS = 240_000_000;
+
+export function canAttemptFullResolutionExport(plan) {
+  return Number(plan.widthPx) * Number(plan.heightPx) <= MAX_SINGLE_CANVAS_PIXELS;
+}
+
+export function getExportFailureDetails(plan) {
+  const width = Number(plan.widthPx);
+  const height = Number(plan.heightPx);
+  const pixelCount = width * height;
+  if (pixelCount > LARGE_OUTPUT_PIXELS) {
+    return {
+      key: "outputTooLarge",
+      values: {
+        width,
+        height,
+        memoryGb: (pixelCount * 4 / 1_000_000_000).toFixed(1),
+        recommendedDpi: Number(plan.dpi) > 600 ? 600 : Number(plan.dpi) > 300 ? 300 : 150
+      }
+    };
+  }
+  return { key: "exportFailed", values: { width, height } };
+}
+
 export async function canvasToPng(canvas, dpi) {
   const png = await canvasBlob(canvas, "image/png");
   return new Blob([setPngDpi(new Uint8Array(await png.arrayBuffer()), dpi)], { type: "image/png" });

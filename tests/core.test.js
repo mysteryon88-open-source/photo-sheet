@@ -5,6 +5,7 @@ import * as layout from "../src/layout.js";
 import * as photoUtils from "../src/photos.js";
 import { buildPdf } from "../src/pdf.js";
 import * as dpiMetadata from "../src/png-dpi.js";
+import * as exportUtils from "../src/export.js";
 import { renderSheet } from "../src/renderer.js";
 
 const { buildSheetPlan, getCutMarkSegments, resolvePaper } = layout;
@@ -123,6 +124,178 @@ test("automatic layout fits twelve photos in either paper orientation", () => {
   assert.deepEqual([portrait.columns, portrait.rows, portrait.cells.length], [3, 4, 12]);
 });
 
+test("photo-size layout fits and centers exact 35 by 45 mm cells on A4", () => {
+  const plan = buildSheetPlan({
+    paper: { widthMm: 210, heightMm: 297 },
+    dpi: 300,
+    marginMm: 5,
+    gapMm: 2,
+    gridMode: "fixed",
+    columns: 1,
+    rows: 1,
+    photoWidthMm: 35,
+    photoHeightMm: 45,
+    photoCount: 1
+  });
+
+  const firstCellMm = [plan.cells[0].x, plan.cells[0].y, plan.cells[0].width, plan.cells[0].height]
+    .map(value => Math.round(value / plan.scale * 1000) / 1000);
+  const lastCell = plan.cells.at(-1);
+  const lastCellMm = [lastCell.x, lastCell.y].map(value => Math.round(value / plan.scale * 1000) / 1000);
+
+  assert.deepEqual([plan.columns, plan.rows, plan.cells.length], [5, 6, 30]);
+  assert.deepEqual(firstCellMm, [13.5, 8.5, 35, 45]);
+  assert.deepEqual(lastCellMm, [161.5, 243.5]);
+  assert.deepEqual(new Set(plan.cells.map(cell => cell.photoIndex)), new Set([0]));
+});
+
+test("photo-size layout preserves the selected fill mode", () => {
+  const plan = buildSheetPlan({
+    paper: { widthMm: 100, heightMm: 150 },
+    dpi: 300,
+    marginMm: 5,
+    gapMm: 2,
+    gridMode: "fixed",
+    columns: 1,
+    rows: 1,
+    photoWidthMm: 35,
+    photoHeightMm: 45,
+    photoFit: "cover",
+    photoCount: 1
+  });
+
+  assert.equal(plan.photoFit, "cover");
+});
+
+test("photo-size layout rejects more distinct photos than the sheet capacity", () => {
+  const fullPlan = buildSheetPlan({
+    paper: { widthMm: 210, heightMm: 297 },
+    dpi: 300,
+    marginMm: 5,
+    gapMm: 2,
+    gridMode: "fixed",
+    columns: 1,
+    rows: 1,
+    photoWidthMm: 35,
+    photoHeightMm: 45,
+    photoCount: 30
+  });
+
+  assert.equal(fullPlan.cells.length, 30);
+  assert.throws(() => buildSheetPlan({
+    paper: { widthMm: 210, heightMm: 297 },
+    dpi: 300,
+    marginMm: 5,
+    gapMm: 2,
+    gridMode: "fixed",
+    columns: 1,
+    rows: 1,
+    photoWidthMm: 35,
+    photoHeightMm: 45,
+    photoCount: 31
+  }), error => error.message === "GRID_TOO_SMALL" && error.capacity === 30 && error.selected === 31);
+});
+
+test("photo-size layout keeps an exact decimal-boundary column", () => {
+  const plan = buildSheetPlan({
+    paper: { widthMm: 90, heightMm: 130 },
+    dpi: 300,
+    marginMm: 1,
+    gapMm: 0.5,
+    gridMode: "fixed",
+    columns: 1,
+    rows: 1,
+    photoWidthMm: 5.4,
+    photoHeightMm: 10,
+    photoCount: 1
+  });
+
+  assert.equal(plan.columns, 15);
+});
+
+test("photo-size layout rejects impractically tiny cells", () => {
+  assert.throws(() => buildSheetPlan({
+    paper: { widthMm: 210, heightMm: 297 },
+    dpi: 300,
+    marginMm: 0,
+    gapMm: 0,
+    gridMode: "fixed",
+    columns: 1,
+    rows: 1,
+    photoWidthMm: 4.9,
+    photoHeightMm: 5,
+    photoCount: 1
+  }), error => error.message === "INVALID_PHOTO_SIZE");
+});
+
+test("automatic layout grows beyond twelve selected photos", () => {
+  const plan = buildSheetPlan({
+    paper: { widthMm: 210, heightMm: 297 },
+    dpi: 300,
+    marginMm: 5,
+    gapMm: 2,
+    gridMode: "auto",
+    columns: 1,
+    rows: 1,
+    photoCount: 20
+  });
+
+  assert.deepEqual([plan.columns, plan.rows, plan.cells.length], [4, 5, 20]);
+});
+
+test("preview plans stay within their pixel budget without mutating the export plan", () => {
+  const plan = {
+    widthPx: 9_921,
+    heightPx: 14_031,
+    paperWidthMm: 210,
+    paperHeightMm: 297,
+    dpi: 1_200,
+    scale: 1_200 / 25.4,
+    marginMm: 5,
+    gapMm: 2,
+    cells: [{ x: 240, y: 360, width: 1_200, height: 1_800 }]
+  };
+  const original = structuredClone(plan);
+  const expectedScale = Math.sqrt(8_000_000 / (9_921 * 14_031));
+
+  const preview = layout.fitSheetPlanToPixels?.(plan, 8_000_000);
+
+  assert.ok(preview, "fitSheetPlanToPixels must be exported");
+  assert.ok(preview.widthPx * preview.heightPx <= 8_000_000);
+  assert.equal(preview.paperWidthMm, 210);
+  assert.equal(preview.dpi, 1_200);
+  assert.ok(Math.abs(preview.cells[0].width - 1_200 * expectedScale) < 0.001);
+  assert.ok(Math.abs(preview.scale - plan.scale * expectedScale) < 0.001);
+  assert.deepEqual(plan, original);
+});
+
+test("A3 at 1200 DPI produces an actionable large-export error", () => {
+  const details = exportUtils.getExportFailureDetails?.({
+    widthPx: 19_843,
+    heightPx: 14_031,
+    dpi: 1_200
+  });
+
+  assert.ok(details, "getExportFailureDetails must be exported");
+  assert.deepEqual(details, {
+    key: "outputTooLarge",
+    values: {
+      width: 19_843,
+      height: 14_031,
+      memoryGb: "1.1",
+      recommendedDpi: 600
+    }
+  });
+});
+
+test("single-canvas export rejects A3 at 1200 DPI but still allows A4", () => {
+  const canAttempt = exportUtils.canAttemptFullResolutionExport;
+
+  assert.ok(canAttempt, "canAttemptFullResolutionExport must be exported");
+  assert.equal(canAttempt({ widthPx: 19_843, heightPx: 14_031 }), false);
+  assert.equal(canAttempt({ widthPx: 14_031, heightPx: 9_921 }), true);
+});
+
 test("custom grid defaults to the current sheet dimensions", () => {
   const getDefaults = layout.getCustomGridDefaults;
 
@@ -153,12 +326,113 @@ test("removeItem removes one photo without mutating the source", () => {
   assert.deepEqual(source, ["a", "b", "c"]);
 });
 
-test("photo selection accepts twelve images and rejects the thirteenth", () => {
+test("photo selection accepts any number of supported images", () => {
   const getError = photoUtils.getPhotoSelectionError;
 
-  assert.equal(getError?.(12, 12, 12), null);
-  assert.equal(getError?.(13, 13, 13), "photoLimit");
+  assert.equal(getError?.(30, 30, 30), null);
   assert.equal(getError?.(1, 0, 0), "needPhotos");
+});
+
+test("photo decoding limits concurrency while preserving order and progress", async () => {
+  let active = 0;
+  let peak = 0;
+  const progress = [];
+  const files = Array.from({ length: 9 }, (_, index) => ({ index }));
+
+  const results = await photoUtils.loadPhotosWithLimit?.(
+    files,
+    async file => {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise(resolve => setTimeout(resolve, 2));
+      active--;
+      return `photo-${file.index}`;
+    },
+    { concurrency: 3, onProgress: (completed, total) => progress.push([completed, total]) }
+  );
+
+  assert.ok(results, "loadPhotosWithLimit must be exported");
+  assert.equal(peak, 3);
+  assert.deepEqual(results, files.map(file => ({ status: "fulfilled", value: `photo-${file.index}` })));
+  assert.deepEqual(progress, Array.from({ length: 9 }, (_, index) => [index + 1, 9]));
+});
+
+test("photo decoding stops scheduling work after cancellation", async () => {
+  let started = 0;
+  let cancelled = false;
+
+  const results = await photoUtils.loadPhotosWithLimit?.(
+    Array.from({ length: 8 }, (_, index) => index),
+    async value => {
+      started++;
+      if (value === 0) cancelled = true;
+      return value;
+    },
+    { concurrency: 2, isCancelled: () => cancelled }
+  );
+
+  assert.ok(results, "loadPhotosWithLimit must be exported");
+  assert.ok(started <= 2);
+  assert.equal(results.length, 8);
+  assert.ok(results.slice(started).every(result => result.status === "cancelled"));
+});
+
+test("photo render snapshots isolate later edit changes", () => {
+  const source = { id: "bitmap" };
+  const photos = [{ source, edit: { rotation: 0, flipX: false, flipY: false } }];
+
+  const snapshot = photoUtils.snapshotPhotosForRender?.(photos);
+  photos[0].edit.rotation = 90;
+
+  assert.ok(snapshot, "snapshotPhotosForRender must be exported");
+  assert.equal(snapshot[0].source, source);
+  assert.deepEqual(snapshot[0].edit, { rotation: 0, flipX: false, flipY: false });
+});
+
+test("decoded photo pixel totals use oriented source dimensions", () => {
+  assert.equal(photoUtils.getTotalPhotoPixels?.([
+    { source: { width: 4_000, height: 3_000 } },
+    { source: { naturalWidth: 2_000, naturalHeight: 1_500 } }
+  ]), 15_000_000);
+});
+
+test("splitting photos at capacity returns kept and removable items", () => {
+  assert.deepEqual(photoUtils.splitItemsAtLimit?.(["a", "b", "c"], 2), {
+    kept: ["a", "b"],
+    removed: ["c"]
+  });
+});
+
+test("cover placement fills and clips a mismatched photo cell", () => {
+  const calls = [];
+  const context = {
+    fillStyle: "",
+    imageSmoothingEnabled: false,
+    imageSmoothingQuality: "low",
+    fillRect() {},
+    save() {},
+    restore() {},
+    beginPath() { calls.push(["beginPath"]); },
+    rect(...args) { calls.push(["rect", ...args]); },
+    clip() { calls.push(["clip"]); },
+    translate() {},
+    rotate() {},
+    scale() {},
+    drawImage(...args) { calls.push(["drawImage", ...args]); }
+  };
+  const canvas = { width: 0, height: 0, getContext: () => context };
+  const photo = { source: { width: 40, height: 30 }, edit: { rotation: 0, flipX: false, flipY: false } };
+  const plan = {
+    widthPx: 100,
+    heightPx: 100,
+    photoFit: "cover",
+    cells: [{ x: 10, y: 20, width: 35, height: 45, photoIndex: 0 }]
+  };
+
+  renderSheet(canvas, [photo], plan, false);
+
+  assert.deepEqual(calls.slice(0, 3), [["beginPath"], ["rect", 10, 20, 35, 45], ["clip"]]);
+  assert.deepEqual(calls.at(-1).slice(2), [-30, -22.5, 60, 45]);
 });
 
 test("buildPdf creates a one-page PDF whose xref offset is valid", () => {

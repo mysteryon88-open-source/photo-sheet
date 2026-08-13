@@ -1,8 +1,55 @@
-export const MAX_PHOTOS = 12;
-
-export function getPhotoSelectionError(selectedCount, acceptedCount, totalCount) {
+export function getPhotoSelectionError(selectedCount, acceptedCount) {
   if (acceptedCount < 1 || acceptedCount !== selectedCount) return "needPhotos";
-  return totalCount > MAX_PHOTOS ? "photoLimit" : null;
+  return null;
+}
+
+export async function loadPhotosWithLimit(files, decoder, {
+  concurrency = 3,
+  onProgress = () => {},
+  isCancelled = () => false
+} = {}) {
+  const items = [...files];
+  const results = Array(items.length);
+  const workerCount = Math.min(items.length, Math.max(1, Math.trunc(Number(concurrency)) || 1));
+  let nextIndex = 0;
+  let completed = 0;
+
+  const worker = async () => {
+    while (nextIndex < items.length) {
+      if (isCancelled()) return;
+      const index = nextIndex++;
+      try {
+        results[index] = { status: "fulfilled", value: await decoder(items[index]) };
+      } catch (reason) {
+        results[index] = { status: "rejected", reason };
+      }
+      completed++;
+      onProgress(completed, items.length);
+    }
+  };
+
+  await Promise.all(Array.from({ length: workerCount }, worker));
+  for (let index = 0; index < results.length; index++) {
+    if (!results[index]) results[index] = { status: "cancelled" };
+  }
+  return results;
+}
+
+export function snapshotPhotosForRender(photos) {
+  return photos.map(photo => ({ source: photo.source, edit: { ...photo.edit } }));
+}
+
+export function getTotalPhotoPixels(photos) {
+  return photos.reduce((total, photo) => {
+    const width = Number(photo.source.width || photo.source.naturalWidth) || 0;
+    const height = Number(photo.source.height || photo.source.naturalHeight) || 0;
+    return total + width * height;
+  }, 0);
+}
+
+export function splitItemsAtLimit(items, limit) {
+  const splitIndex = Math.max(0, Math.trunc(Number(limit)) || 0);
+  return { kept: items.slice(0, splitIndex), removed: items.slice(splitIndex) };
 }
 
 export function moveItem(items, fromIndex, toIndex) {

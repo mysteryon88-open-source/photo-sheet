@@ -1,10 +1,13 @@
-import { canvasToJpeg, canvasToPdfBlob, canvasToPng, createPrintController, downloadBlob } from "./export.js";
+import { canAttemptFullResolutionExport, canvasToJpeg, canvasToPdfBlob, canvasToPng, createPrintController, downloadBlob, getExportFailureDetails } from "./export.js";
 import { translate } from "./i18n.js";
-import { buildSheetPlan, getCustomGridDefaults, getPhotoIndexFromViewportPoint, resolvePaper } from "./layout.js";
-import { MAX_PHOTOS, createPhoto, disposePhotos, editPhoto, getPhotoSelectionError, moveItem, removeItem } from "./photos.js";
+import { buildSheetPlan, fitSheetPlanToPixels, getCustomGridDefaults, getPhotoIndexFromViewportPoint, resolvePaper } from "./layout.js";
+import { createPhoto, disposePhotos, editPhoto, getPhotoSelectionError, getTotalPhotoPixels, loadPhotosWithLimit, moveItem, removeItem, snapshotPhotosForRender, splitItemsAtLimit } from "./photos.js";
 import { renderSheet } from "./renderer.js";
 
 const RENDER_DELAY_MS = 90;
+const PREVIEW_MAX_PIXELS = 8_000_000;
+const PHOTO_LOAD_CONCURRENCY = 3;
+const MAX_DECODED_PHOTO_PIXELS = 240_000_000;
 const supportedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/bmp", "image/x-ms-bmp"]);
 const photoToolIcons = {
   rotateLeft: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V3h5"/><path d="M4.5 8A8 8 0 1 1 7 18.5"/></svg>',
@@ -39,27 +42,36 @@ const elements = {
   dpi: byId("dpi"),
   gridMode: byId("gridMode"),
   customGridFields: byId("customGridFields"),
+  photoSizeFields: byId("photoSizeFields"),
   columns: byId("columns"),
   rows: byId("rows"),
+  photoWidth: byId("photoWidth"),
+  photoHeight: byId("photoHeight"),
+  photoFit: byId("photoFit"),
   margin: byId("margin"),
   marginValue: byId("marginValue"),
   gap: byId("gap"),
   gapValue: byId("gapValue"),
-  cutMarks: byId("cutMarks")
+  cutMarks: byId("cutMarks"),
+  statusActions: byId("statusActions"),
+  trimPhotos: byId("trimPhotos")
 };
 
 const printController = createPrintController(byId("printImage"), byId("pageStyle"));
 let locale = localStorage.getItem("locale") === "en" ? "en" : "ru";
 let photos = [];
 let selectedPhotoIndex = 0;
-let lastPng = null;
 let lastPlan = null;
+let lastPreviewPlan = null;
 let lastFilename = "photo-sheet";
 let renderTimer = 0;
 let renderVersion = 0;
 let loadVersion = 0;
 let fileInputMode = "replace";
 let statusState = { key: null, values: {} };
+let sheetVersion = 0;
+let outputBusy = false;
+let overflowCapacity = 0;
 
 bindEvents();
 setTheme(localStorage.getItem("theme") === "dark" ? "dark" : "light");
@@ -85,7 +97,7 @@ function bindEvents() {
   bindFileDrop(elements.drop);
   bindFileDrop(elements.previewStage);
 
-  for (const select of [elements.paper, elements.orientation, elements.dpi, elements.gridMode]) {
+  for (const select of [elements.paper, elements.orientation, elements.dpi, elements.gridMode, elements.photoFit]) {
     select.addEventListener("change", () => {
       if (select === elements.gridMode && select.value === "custom") {
         const defaults = getCustomGridDefaults(lastPlan, Number(elements.columns.value), Number(elements.rows.value));
@@ -96,10 +108,11 @@ function bindEvents() {
       scheduleRender();
     });
   }
-  for (const input of [elements.columns, elements.rows]) {
+  for (const input of [elements.columns, elements.rows, elements.photoWidth, elements.photoHeight]) {
     input.addEventListener("input", scheduleRender);
   }
   elements.cutMarks.addEventListener("change", scheduleRender);
+  elements.trimPhotos.addEventListener("click", trimPhotosToCapacity);
   bindRange(elements.margin, elements.marginValue);
   bindRange(elements.gap, elements.gapValue);
 
@@ -141,10 +154,7 @@ function bindEvents() {
 }
 
 function openFilePicker(mode) {
-  if (mode === "add" && photos.length >= MAX_PHOTOS) {
-    showStatus("photoLimit");
-    return;
-  }
+  if (outputBusy) return;
   fileInputMode = mode;
   elements.fileInput.click();
 }
@@ -187,10 +197,10 @@ function bindRange(slider, numberInput) {
 }
 
 async function loadPhotos(files, mode) {
+  if (outputBusy) return;
   const version = ++loadVersion;
   const accepted = files.filter(isSupportedImage);
-  const totalCount = mode === "add" ? photos.length + accepted.length : accepted.length;
-  const selectionError = getPhotoSelectionError(files.length, accepted.length, totalCount);
+  const selectionError = getPhotoSelectionError(files.length, accepted.length);
   if (selectionError) {
     showStatus(selectionError);
     return;
@@ -199,15 +209,43 @@ async function loadPhotos(files, mode) {
   clearTimeout(renderTimer);
   closePhotoMenu();
   renderVersion++;
-  showStatus("loading");
-  const results = await Promise.allSettled(accepted.map(createPhoto));
+  sheetVersion++;
+  disableExports();
+  showStatus("loadingProgress", { completed: 0, total: accepted.length });
+  let decodedPixelCount = mode === "add" ? getTotalPhotoPixels(photos) : 0;
+  let memoryLimitExceeded = false;
+  const decodePhotoWithinBudget = async file => {
+    const photo = await createPhoto(file);
+    const photoPixels = getTotalPhotoPixels([photo]);
+    if (memoryLimitExceeded || decodedPixelCount + photoPixels > MAX_DECODED_PHOTO_PIXELS) {
+      memoryLimitExceeded = true;
+      disposePhotos([photo]);
+      throw new Error("PHOTO_MEMORY_LIMIT");
+    }
+    decodedPixelCount += photoPixels;
+    return photo;
+  };
+  const results = await loadPhotosWithLimit(accepted, decodePhotoWithinBudget, {
+    concurrency: PHOTO_LOAD_CONCURRENCY,
+    isCancelled: () => version !== loadVersion || memoryLimitExceeded,
+    onProgress: (completed, total) => {
+      if (version === loadVersion) showStatus("loadingProgress", { completed, total });
+    }
+  });
   const loaded = results.filter(result => result.status === "fulfilled").map(result => result.value);
   if (version !== loadVersion) {
     disposePhotos(loaded);
     return;
   }
+  if (memoryLimitExceeded) {
+    disposePhotos(loaded);
+    if (photos.length > 0) await renderSelection();
+    showStatus("photoMemoryLimit");
+    return;
+  }
   if (results.some(result => result.status === "rejected")) {
     disposePhotos(loaded);
+    if (photos.length > 0) await renderSelection();
     showStatus("error");
     return;
   }
@@ -227,7 +265,6 @@ function isSupportedImage(file) {
 
 function syncPhotoControls() {
   elements.addPhotos.hidden = photos.length === 0;
-  elements.addPhotos.disabled = photos.length >= MAX_PHOTOS;
   elements.replacePhotos.textContent = t(photos.length === 0 ? "choosePhotos" : "replacePhotos");
   selectedPhotoIndex = Math.min(selectedPhotoIndex, Math.max(0, photos.length - 1));
   elements.sidebar.classList.toggle("has-photos", photos.length > 0);
@@ -240,9 +277,9 @@ function syncPhotoControls() {
 }
 
 function getCanvasPhotoIndex(event) {
-  if (elements.canvas.hidden || !lastPlan) return -1;
+  if (elements.canvas.hidden || !lastPreviewPlan) return -1;
   return getPhotoIndexFromViewportPoint(
-    lastPlan.cells,
+    lastPreviewPlan.cells,
     elements.canvas.getBoundingClientRect(),
     elements.canvas,
     { x: event.clientX, y: event.clientY }
@@ -250,7 +287,7 @@ function getCanvasPhotoIndex(event) {
 }
 
 function getPhotoCellViewportRect(photoIndex) {
-  const cell = lastPlan?.cells.find(item => item.photoIndex === photoIndex);
+  const cell = lastPreviewPlan?.cells.find(item => item.photoIndex === photoIndex);
   if (!cell || elements.canvas.hidden) return null;
   const bounds = elements.canvas.getBoundingClientRect();
   const scaleX = elements.canvas.clientWidth / elements.canvas.width;
@@ -283,7 +320,7 @@ function bindCanvasReorder() {
   let drag = null;
 
   elements.canvas.addEventListener("pointerdown", event => {
-    if (event.button !== 0 || photos.length === 0) return;
+    if (outputBusy || event.button !== 0 || photos.length === 0) return;
     const photoIndex = getCanvasPhotoIndex(event);
     if (photoIndex < 0) return;
     selectedPhotoIndex = photoIndex;
@@ -325,6 +362,7 @@ function bindCanvasReorder() {
 }
 
 function applySelectedPhotoAction(action) {
+  if (outputBusy) return;
   if (action === "addPhotos") return openFilePicker("add");
   if (action === "clearCanvas") return clearPhotos();
   if (action === "removePhoto") return removeSelectedPhoto();
@@ -335,6 +373,7 @@ function applySelectedPhotoAction(action) {
 }
 
 function openPhotoMenu(event) {
+  if (outputBusy) return;
   const photoIndex = event.type === "keydown" ? (photos.length > 0 ? selectedPhotoIndex : -1) : getCanvasPhotoIndex(event);
   event.preventDefault();
   if (photoIndex >= 0) {
@@ -362,7 +401,7 @@ function renderPhotoMenu(photoIndex) {
     button.type = "button";
     button.dataset.action = action;
     button.classList.toggle("danger", action === "removePhoto" || action === "clearCanvas");
-    button.disabled = (action === "addPhotos" && photos.length >= MAX_PHOTOS) || (action === "clearCanvas" && photos.length === 0);
+    button.disabled = action === "clearCanvas" && photos.length === 0;
     button.setAttribute("role", "menuitem");
     button.innerHTML = `${photoToolIcons[action]}<span>${t(action)}</span>`;
     return button;
@@ -387,6 +426,7 @@ function closePhotoMenu() {
 }
 
 function clearPhotos() {
+  if (outputBusy) return;
   loadVersion++;
   clearTimeout(renderTimer);
   renderVersion++;
@@ -402,6 +442,7 @@ function clearPhotos() {
 }
 
 function removeSelectedPhoto() {
+  if (outputBusy) return;
   const removed = photos[selectedPhotoIndex];
   if (!removed) return;
   clearTimeout(renderTimer);
@@ -422,6 +463,7 @@ function removeSelectedPhoto() {
 }
 
 function movePhoto(fromIndex, toIndex) {
+  if (outputBusy) return;
   if (fromIndex === toIndex || toIndex < 0 || toIndex >= photos.length) return;
   const selectedPhoto = photos[selectedPhotoIndex];
   photos = moveItem(photos, fromIndex, toIndex);
@@ -432,6 +474,7 @@ function movePhoto(fromIndex, toIndex) {
 
 function syncConditionalControls() {
   elements.customGridFields.hidden = elements.gridMode.value !== "custom";
+  elements.photoSizeFields.hidden = elements.gridMode.value !== "fixed";
   elements.previewStage.dataset.orientation = elements.orientation.value;
 }
 
@@ -440,6 +483,7 @@ function scheduleRender() {
   closePhotoMenu();
   if (photos.length === 0) return;
   renderVersion++;
+  sheetVersion++;
   disableExports();
   showStatus("processing");
   renderTimer = setTimeout(renderSelection, RENDER_DELAY_MS);
@@ -455,40 +499,29 @@ async function renderSelection() {
   try {
     await new Promise(resolve => requestAnimationFrame(resolve));
     plan = readPlan();
-    renderSheet(elements.canvas, photos, plan, elements.cutMarks.checked);
-    const png = await canvasToPng(elements.canvas, plan.dpi);
+    const previewPlan = fitSheetPlanToPixels(plan, PREVIEW_MAX_PIXELS);
+    renderSheet(elements.canvas, photos, previewPlan, elements.cutMarks.checked);
     if (version !== renderVersion) return;
 
     lastPlan = plan;
-    lastPng = png;
+    lastPreviewPlan = previewPlan;
     lastFilename = buildFilename(plan);
     elements.canvas.hidden = false;
     elements.emptyPreview.hidden = true;
     elements.saveFile.disabled = false;
     elements.print.disabled = false;
-    showStatus("ready", {
-      width: plan.widthPx,
-      height: plan.heightPx,
-      columns: plan.columns,
-      rows: plan.rows,
-      copies: plan.cells.length
-    });
+    showPlanReady(plan);
   } catch (error) {
     if (version !== renderVersion) return;
-    lastPng = null;
+    lastPreviewPlan = null;
     elements.canvas.hidden = true;
     elements.emptyPreview.hidden = false;
-    if (error?.message === "TOO_LARGE" && plan) {
-      lastPlan = plan;
-      lastFilename = buildFilename(plan);
-      elements.canvas.width = 0;
-      elements.canvas.height = 0;
-      elements.saveFile.disabled = false;
-      showStatus("tooLarge");
-      return;
-    }
     lastPlan = null;
-    showStatus(errorMessageKey(error));
+    const key = errorMessageKey(error);
+    const values = key === "gridTooSmall"
+      ? { selected: error.selected ?? photos.length, capacity: error.capacity ?? 0 }
+      : {};
+    showStatus(key, values);
   }
 }
 
@@ -502,6 +535,9 @@ function readPlan() {
     gridMode: elements.gridMode.value,
     columns: Number(elements.columns.value),
     rows: Number(elements.rows.value),
+    photoWidthMm: Number(elements.photoWidth.value),
+    photoHeightMm: Number(elements.photoHeight.value),
+    photoFit: elements.gridMode.value === "fixed" ? elements.photoFit.value : "contain",
     photoCount: photos.length
   });
 }
@@ -512,56 +548,117 @@ function buildFilename(plan) {
 }
 
 async function saveSelectedFile() {
-  if (!lastPlan) return;
-  elements.saveFile.disabled = true;
-  const exportCanvas = lastPng ? elements.canvas : document.createElement("canvas");
+  if (!lastPlan || outputBusy) return;
+  const plan = lastPlan;
+  const filename = lastFilename;
+  const format = elements.exportFormat.value;
+  const photosSnapshot = snapshotPhotosForRender(photos);
+  const drawCutMarks = elements.cutMarks.checked;
+  const version = sheetVersion;
+  setOutputBusy(true);
   try {
-    if (!lastPng) {
-      showStatus("processing");
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      renderSheet(exportCanvas, photos, lastPlan, elements.cutMarks.checked, Infinity);
-    }
-    const format = elements.exportFormat.value;
-    const blob = format === "pdf"
-      ? await canvasToPdfBlob(exportCanvas, lastPlan)
-      : format === "jpg" ? await canvasToJpeg(exportCanvas, lastPlan.dpi) : lastPng ?? await canvasToPng(exportCanvas, lastPlan.dpi);
-    downloadBlob(blob, `${lastFilename}.${format}`);
-    if (!lastPng) showStatus("tooLarge");
+    showStatus("processing");
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    const blob = await createOutputBlob(format, plan, photosSnapshot, drawCutMarks);
+    downloadBlob(blob, `${filename}.${format}`);
+    if (version === sheetVersion) showPlanReady(plan);
   } catch {
-    showStatus("error");
+    if (version === sheetVersion) showExportFailure(plan);
   } finally {
-    if (!lastPng) {
-      exportCanvas.width = 0;
-      exportCanvas.height = 0;
-    }
-    elements.saveFile.disabled = !lastPlan;
+    setOutputBusy(false);
   }
 }
 
 async function printSheet() {
-  if (!lastPng || !lastPlan) return;
-  elements.print.disabled = true;
+  if (!lastPlan || outputBusy) return;
+  const plan = lastPlan;
+  const photosSnapshot = snapshotPhotosForRender(photos);
+  const drawCutMarks = elements.cutMarks.checked;
+  const version = sheetVersion;
+  setOutputBusy(true);
   try {
-    await printController.print(lastPng, lastPlan);
+    showStatus("processing");
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    const png = await createOutputBlob("png", plan, photosSnapshot, drawCutMarks);
+    await printController.print(png, plan);
+    if (version === sheetVersion) showPlanReady(plan);
   } catch {
-    showStatus("error");
+    if (version === sheetVersion) showExportFailure(plan);
   } finally {
-    elements.print.disabled = !lastPlan;
+    setOutputBusy(false);
   }
 }
 
+async function createOutputBlob(format, plan, photosSnapshot, drawCutMarks) {
+  if (!canAttemptFullResolutionExport(plan)) throw new Error("OUTPUT_TOO_LARGE");
+  const exportCanvas = document.createElement("canvas");
+  try {
+    renderSheet(exportCanvas, photosSnapshot, plan, drawCutMarks, Infinity);
+    if (format === "pdf") return await canvasToPdfBlob(exportCanvas, plan);
+    if (format === "jpg") return await canvasToJpeg(exportCanvas, plan.dpi);
+    return await canvasToPng(exportCanvas, plan.dpi);
+  } finally {
+    exportCanvas.width = 0;
+    exportCanvas.height = 0;
+  }
+}
+
+function showPlanReady(plan) {
+  showStatus("ready", {
+    width: plan.widthPx,
+    height: plan.heightPx,
+    columns: plan.columns,
+    rows: plan.rows,
+    copies: plan.cells.length
+  });
+}
+
+function showExportFailure(plan) {
+  const failure = getExportFailureDetails(plan);
+  showStatus(failure.key, failure.values);
+}
+
 function disableExports() {
-  lastPng = null;
   lastPlan = null;
+  lastPreviewPlan = null;
   elements.saveFile.disabled = true;
   elements.print.disabled = true;
 }
 
+function setOutputBusy(busy) {
+  outputBusy = busy;
+  if (busy) {
+    closePhotoMenu();
+    hideReorderTarget();
+  }
+  const controls = [
+    elements.paper, elements.orientation, elements.dpi, elements.gridMode,
+    elements.columns, elements.rows, elements.photoWidth, elements.photoHeight,
+    elements.photoFit, elements.margin, elements.marginValue, elements.gap,
+    elements.gapValue, elements.cutMarks, elements.replacePhotos, elements.addPhotos,
+    elements.exportFormat, elements.trimPhotos
+  ];
+  for (const control of controls) control.disabled = busy;
+  elements.saveFile.disabled = busy || !lastPlan;
+  elements.print.disabled = busy || !lastPlan;
+  elements.previewStage.classList.toggle("output-busy", busy);
+}
+
+function trimPhotosToCapacity() {
+  if (outputBusy || overflowCapacity < 1 || photos.length <= overflowCapacity) return;
+  const { kept, removed } = splitItemsAtLimit(photos, overflowCapacity);
+  disposePhotos(removed);
+  photos = kept;
+  selectedPhotoIndex = Math.min(selectedPhotoIndex, photos.length - 1);
+  syncPhotoControls();
+  renderSelection();
+}
+
 function errorMessageKey(error) {
   return {
-    TOO_LARGE: "tooLarge",
     GRID_TOO_SMALL: "gridTooSmall",
     CELLS_DO_NOT_FIT: "cellsDoNotFit",
+    INVALID_PHOTO_SIZE: "invalidPhotoSize",
     INVALID_PAPER: "invalidPaper"
   }[error?.message] ?? "error";
 }
@@ -589,14 +686,40 @@ function setTheme(nextTheme) {
 
 function showStatus(key, values = {}) {
   statusState = { key, values };
+  overflowCapacity = key === "gridTooSmall" ? Number(values.capacity) || 0 : 0;
   renderStatus();
 }
 
 function renderStatus() {
-  const isLimitError = statusState.key === "photoLimit";
-  elements.status.textContent = statusState.key ? t(statusState.key, statusState.values) : "";
-  elements.status.classList.toggle("status-error", isLimitError);
-  elements.status.setAttribute("aria-live", isLimitError ? "assertive" : "polite");
+  const richError = {
+    outputTooLarge: ["outputTooLargeTitle", "outputTooLargeDetail"],
+    exportFailed: ["exportFailedTitle", "exportFailedDetail"]
+  }[statusState.key];
+  const isError = Boolean(richError) || ["needPhotos", "photoMemoryLimit", "gridTooSmall", "cellsDoNotFit", "invalidPhotoSize", "error"].includes(statusState.key);
+  elements.status.replaceChildren();
+  elements.status.classList.toggle("status-rich-error", Boolean(richError));
+  if (richError) {
+    const icon = document.createElement("span");
+    icon.className = "status-error-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "!";
+    const copy = document.createElement("span");
+    copy.className = "status-error-copy";
+    const title = document.createElement("strong");
+    title.textContent = t(richError[0], statusState.values);
+    const detail = document.createElement("span");
+    detail.textContent = t(richError[1], statusState.values);
+    copy.append(title, detail);
+    elements.status.append(icon, copy);
+  } else {
+    elements.status.textContent = statusState.key ? t(statusState.key, statusState.values) : "";
+  }
+  elements.status.classList.toggle("status-error", isError);
+  elements.status.setAttribute("role", isError ? "alert" : "status");
+  elements.status.setAttribute("aria-live", isError ? "assertive" : "polite");
+  const canTrim = statusState.key === "gridTooSmall" && overflowCapacity > 0;
+  elements.statusActions.hidden = !canTrim;
+  elements.trimPhotos.textContent = canTrim ? t("trimPhotos", { capacity: overflowCapacity }) : "";
 }
 
 function t(key, values) {

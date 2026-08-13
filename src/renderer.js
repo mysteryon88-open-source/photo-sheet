@@ -11,22 +11,27 @@ export function renderSheet(canvas, photos, plan, drawCutMarks, maxPixels = MAX_
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (const cell of plan.cells) drawPhoto(context, photos[cell.photoIndex], cell);
+  for (const cell of plan.cells) drawPhoto(context, photos[cell.photoIndex], cell, plan.photoFit);
   if (drawCutMarks) drawMarks(context, plan);
 }
 
-function drawPhoto(context, photo, cell) {
+function drawPhoto(context, photo, cell, photoFit) {
   const image = photo.source;
   const sourceWidth = image.width || image.naturalWidth;
   const sourceHeight = image.height || image.naturalHeight;
   const rotated = photo.edit.rotation % 180 !== 0;
   const fittedWidth = rotated ? sourceHeight : sourceWidth;
   const fittedHeight = rotated ? sourceWidth : sourceHeight;
-  const scale = Math.min(cell.width / fittedWidth, cell.height / fittedHeight);
+  const scale = (photoFit === "cover" ? Math.max : Math.min)(cell.width / fittedWidth, cell.height / fittedHeight);
   const drawWidth = Math.round(sourceWidth * scale);
   const drawHeight = Math.round(sourceHeight * scale);
 
   context.save();
+  if (photoFit === "cover") {
+    context.beginPath();
+    context.rect(cell.x, cell.y, cell.width, cell.height);
+    context.clip();
+  }
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
   context.translate(cell.x + cell.width / 2, cell.y + cell.height / 2);

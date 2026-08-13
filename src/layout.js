@@ -7,6 +7,7 @@ const PAPER_SIZES = {
   a4: [210, 297],
   a3: [297, 420]
 };
+const MIN_PHOTO_SIZE_MM = 5;
 
 export function resolvePaper(paperId, orientation) {
   const dimensions = PAPER_SIZES[paperId];
@@ -51,6 +52,9 @@ export function buildSheetPlan({
   gridMode,
   columns,
   rows,
+  photoWidthMm,
+  photoHeightMm,
+  photoFit,
   photoCount
 }) {
   const scale = Number(dpi) / 25.4;
@@ -58,27 +62,51 @@ export function buildSheetPlan({
   const gap = Math.max(0, Number(gapMm));
   const availableWidth = paper.widthMm - margin * 2;
   const availableHeight = paper.heightMm - margin * 2;
-  if (!Number.isFinite(scale) || scale <= 0 || availableWidth <= 0 || availableHeight <= 0 || photoCount < 1) {
+  if (
+    !Number.isFinite(scale) || scale <= 0 ||
+    !Number.isFinite(margin) || !Number.isFinite(gap) ||
+    availableWidth <= 0 || availableHeight <= 0 || photoCount < 1
+  ) {
     throw new Error("INVALID_LAYOUT");
   }
 
   let grid;
-  if (gridMode === "custom") {
+  let fixedCellWidthMm = null;
+  let fixedCellHeightMm = null;
+  if (gridMode === "fixed") {
+    fixedCellWidthMm = Number(photoWidthMm);
+    fixedCellHeightMm = Number(photoHeightMm);
+    if (
+      !Number.isFinite(fixedCellWidthMm) || fixedCellWidthMm < MIN_PHOTO_SIZE_MM ||
+      !Number.isFinite(fixedCellHeightMm) || fixedCellHeightMm < MIN_PHOTO_SIZE_MM
+    ) throw new Error("INVALID_PHOTO_SIZE");
+    grid = [
+      getFittingCellCount(availableWidth, fixedCellWidthMm, gap),
+      getFittingCellCount(availableHeight, fixedCellHeightMm, gap)
+    ];
+  } else if (gridMode === "custom") {
     grid = [toGridSize(columns), toGridSize(rows)];
   } else {
-    grid = getAutoGrid(photoCount, paper.widthMm > paper.heightMm);
+    grid = getAutoGrid(photoCount, availableWidth / availableHeight);
   }
 
   const [columnCount, rowCount] = grid;
   if (columnCount < 1 || rowCount < 1) throw new Error("CELLS_DO_NOT_FIT");
   const slotCount = columnCount * rowCount;
-  if (photoCount > 1 && slotCount < photoCount) throw new Error("GRID_TOO_SMALL");
+  if (photoCount > 1 && slotCount < photoCount) {
+    const error = new Error("GRID_TOO_SMALL");
+    error.capacity = slotCount;
+    error.selected = photoCount;
+    throw error;
+  }
 
-  const cellWidthMm = (availableWidth - (columnCount - 1) * gap) / columnCount;
-  const cellHeightMm = (availableHeight - (rowCount - 1) * gap) / rowCount;
+  const cellWidthMm = fixedCellWidthMm ?? (availableWidth - (columnCount - 1) * gap) / columnCount;
+  const cellHeightMm = fixedCellHeightMm ?? (availableHeight - (rowCount - 1) * gap) / rowCount;
   if (cellWidthMm <= 0 || cellHeightMm <= 0) throw new Error("CELLS_DO_NOT_FIT");
-  const startXmm = margin;
-  const startYmm = margin;
+  const occupiedWidthMm = columnCount * cellWidthMm + (columnCount - 1) * gap;
+  const occupiedHeightMm = rowCount * cellHeightMm + (rowCount - 1) * gap;
+  const startXmm = margin + (availableWidth - occupiedWidthMm) / 2;
+  const startYmm = margin + (availableHeight - occupiedHeightMm) / 2;
 
   const filledCellCount = photoCount === 1 ? slotCount : photoCount;
   const cells = Array.from({ length: filledCellCount }, (_, index) => {
@@ -106,7 +134,35 @@ export function buildSheetPlan({
     cells,
     scale,
     marginMm: margin,
-    gapMm: gap
+    gapMm: gap,
+    photoFit: photoFit === "cover" ? "cover" : "contain"
+  };
+}
+
+export function fitSheetPlanToPixels(plan, maxPixels) {
+  const width = Number(plan?.widthPx);
+  const height = Number(plan?.heightPx);
+  const limit = Number(maxPixels);
+  if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0 || !Number.isFinite(limit) || limit <= 0) {
+    throw new Error("INVALID_PREVIEW_LIMIT");
+  }
+
+  const pixelCount = width * height;
+  if (pixelCount <= limit) return plan;
+
+  const factor = Math.sqrt(limit / pixelCount);
+  return {
+    ...plan,
+    widthPx: Math.max(1, Math.floor(width * factor)),
+    heightPx: Math.max(1, Math.floor(height * factor)),
+    scale: plan.scale * factor,
+    cells: plan.cells.map(cell => ({
+      ...cell,
+      x: cell.x * factor,
+      y: cell.y * factor,
+      width: cell.width * factor,
+      height: cell.height * factor
+    }))
   };
 }
 
@@ -123,14 +179,33 @@ export function getCutMarkSegments(cells, length) {
   });
 }
 
-function getAutoGrid(count, landscape) {
+function getAutoGrid(count, paperAspect) {
+  const landscape = paperAspect > 1;
   if (count === 1) return [1, 1];
   if (count === 2) return landscape ? [2, 1] : [1, 2];
   if (count <= 4) return [2, 2];
   if (count <= 6) return landscape ? [3, 2] : [2, 3];
   if (count <= 8) return landscape ? [4, 2] : [2, 4];
   if (count === 9) return [3, 3];
-  return landscape ? [4, 3] : [3, 4];
+  if (count <= 12) return landscape ? [4, 3] : [3, 4];
+
+  let best = null;
+  for (let columnCount = 1; columnCount <= count; columnCount++) {
+    const rowCount = Math.ceil(count / columnCount);
+    const emptyCount = columnCount * rowCount - count;
+    const aspectError = Math.abs(Math.log((columnCount / rowCount) / paperAspect));
+    const score = aspectError + emptyCount / count * 0.5;
+    if (!best || score < best.score) best = { columns: columnCount, rows: rowCount, score };
+  }
+  return [best.columns, best.rows];
+}
+
+function getFittingCellCount(availableSize, cellSize, gap) {
+  const ratio = (availableSize + gap) / (cellSize + gap);
+  const nearestInteger = Math.round(ratio);
+  return Math.abs(ratio - nearestInteger) <= Math.max(1, Math.abs(ratio)) * 1e-12
+    ? nearestInteger
+    : Math.floor(ratio);
 }
 
 function toGridSize(value) {

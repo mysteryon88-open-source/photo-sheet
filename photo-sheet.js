@@ -14,9 +14,15 @@
         dpiLabel: "Resolution",
         gridModeLabel: "Grid",
         gridAuto: "Automatic",
+        gridFixed: "By cell size",
         gridCustom: "Custom",
         columnsLabel: "Columns",
         rowsLabel: "Rows",
+        photoWidthLabel: "Cell width, mm",
+        photoHeightLabel: "Cell height, mm",
+        photoFitLabel: "Placement in cell",
+        photoFitContain: "Fit entire photo",
+        photoFitCover: "Fill and crop",
         marginLabel: "Sheet margin",
         gapLabel: "Gap between photos",
         cutMarksLabel: "Add crop marks",
@@ -26,7 +32,7 @@
         clearCanvas: "Clear sheet",
         canvasActions: "Sheet",
         dropToAdd: "Drop photos to add them",
-        hint: "Drop 1 to 12 JPG, PNG, WEBP, or BMP photos onto the sheet to add them",
+        hint: "Drop JPG, PNG, WEBP, or BMP photos onto the sheet to add them",
         previewLabel: "Sheet preview",
         canvasPhotoLabel: "Sheet preview. Photo {number} of {count} selected. Right-click for actions.",
         canvasReorderLabel: "Sheet preview. Photo {number} of {count} selected. Drag photos to reorder; right-click for actions.",
@@ -40,15 +46,22 @@
         save: "Save",
         print: "Print",
         loading: "Opening photos...",
+        loadingProgress: "Opening photos: {completed} of {total}...",
         processing: "Building the print sheet...",
         ready:
           "Ready: {width} × {height} px, {columns} × {rows} grid, filled cells: {copies}.",
         needPhotos: "Choose at least one supported JPG, PNG, WEBP, or BMP image.",
-        photoLimit: "Maximum: 12 photos. Remove the extra files and try again.",
-        tooLarge:
-          "The preview is too large. You can still try to save the file, but it may take time or fail if the browser runs out of memory.",
-        gridTooSmall: "The grid has fewer cells than selected photos.",
+        photoMemoryLimit: "These photos are too large to open together. Choose fewer or lower-resolution files.",
+        gridTooSmall: "Selected: {selected}. Available cells: {capacity}. Increase the grid, reduce the cell size, or remove the extras.",
+        trimPhotos: "Keep the first {capacity}",
         cellsDoNotFit: "These photo cells do not fit on the selected paper.",
+        invalidPhotoSize: "Enter a photo width and height of at least 5 mm.",
+        outputTooLargeTitle: "This file is too large for the browser",
+        outputTooLargeDetail:
+          "A {width} × {height} px canvas needs about {memoryGb} GB before PNG encoding. Choose {recommendedDpi} DPI or a smaller paper size.",
+        exportFailedTitle: "The file could not be saved",
+        exportFailedDetail:
+          "The browser could not create a {width} × {height} px file. Try a lower DPI, another format, or reload the page.",
         invalidPaper: "The selected paper size is unavailable.",
         error: "Could not build the sheet. Check the images and settings.",
         darkTheme: "Enable dark theme",
@@ -65,9 +78,15 @@
         dpiLabel: "Разрешение",
         gridModeLabel: "Сетка",
         gridAuto: "Автоматическая",
+        gridFixed: "По размеру ячейки",
         gridCustom: "Своя",
         columnsLabel: "Столбцы",
         rowsLabel: "Строки",
+        photoWidthLabel: "Ширина ячейки, мм",
+        photoHeightLabel: "Высота ячейки, мм",
+        photoFitLabel: "Размещение в ячейке",
+        photoFitContain: "Вписать целиком",
+        photoFitCover: "Заполнить с обрезкой",
         marginLabel: "Поля листа",
         gapLabel: "Зазор между фото",
         cutMarksLabel: "Добавить метки реза",
@@ -77,7 +96,7 @@
         clearCanvas: "Очистить холст",
         canvasActions: "Холст",
         dropToAdd: "Отпустите фото, чтобы добавить",
-        hint: "Перетащите от 1 до 12 JPG, PNG, WEBP или BMP на холст, чтобы добавить",
+        hint: "Перетащите JPG, PNG, WEBP или BMP на холст, чтобы добавить",
         previewLabel: "Предпросмотр листа",
         canvasPhotoLabel: "Предпросмотр листа. Выбрано фото {number} из {count}. ПКМ — действия.",
         canvasReorderLabel: "Предпросмотр листа. Выбрано фото {number} из {count}. Перетаскивайте фотографии для изменения порядка; ПКМ — действия.",
@@ -91,16 +110,22 @@
         save: "Сохранить",
         print: "Печать",
         loading: "Открываю фотографии...",
+        loadingProgress: "Открываю фотографии: {completed} из {total}...",
         processing: "Собираю лист для печати...",
         ready:
           "Готово: {width} × {height} px, сетка {columns} × {rows}, заполнено ячеек: {copies}.",
         needPhotos: "Выберите хотя бы одно изображение JPG, PNG, WEBP или BMP.",
-        photoLimit:
-          "Максимум 12 фотографий. Уберите лишние файлы и попробуйте снова.",
-        tooLarge:
-          "Предпросмотр слишком большой. Файл всё равно можно попробовать сохранить, но это займёт время и может не сработать при нехватке памяти.",
-        gridTooSmall: "В сетке меньше ячеек, чем выбрано фотографий.",
+        photoMemoryLimit: "Эти фотографии слишком велики для одновременного открытия. Выберите меньше файлов или версии с меньшим разрешением.",
+        gridTooSmall: "Выбрано: {selected}. Помещается: {capacity}. Увеличьте сетку, уменьшите размер ячейки или удалите лишние фото.",
+        trimPhotos: "Оставить первые {capacity}",
         cellsDoNotFit: "Ячейки такого размера не помещаются на выбранной бумаге.",
+        invalidPhotoSize: "Укажите ширину и высоту фотографии не меньше 5 мм.",
+        outputTooLargeTitle: "Такой файл слишком большой для браузера",
+        outputTooLargeDetail:
+          "Холст {width} × {height} px требует около {memoryGb} ГБ ещё до создания PNG. Выберите {recommendedDpi} DPI или бумагу меньшего формата.",
+        exportFailedTitle: "Не удалось сохранить файл",
+        exportFailedDetail:
+          "Браузер не смог создать файл {width} × {height} px. Уменьшите DPI, выберите другой формат или перезагрузите страницу.",
         invalidPaper: "Выбранный формат бумаги недоступен.",
         error: "Не удалось собрать лист. Проверьте изображения и настройки.",
         darkTheme: "Включить тёмную тему",
@@ -130,6 +155,7 @@
       a4: [210, 297],
       a3: [297, 420]
     };
+    const MIN_PHOTO_SIZE_MM = 5;
 
     function resolvePaper(paperId, orientation) {
       const dimensions = PAPER_SIZES[paperId];
@@ -174,6 +200,9 @@
       gridMode,
       columns,
       rows,
+      photoWidthMm,
+      photoHeightMm,
+      photoFit,
       photoCount
     }) {
       const scale = Number(dpi) / 25.4;
@@ -181,27 +210,51 @@
       const gap = Math.max(0, Number(gapMm));
       const availableWidth = paper.widthMm - margin * 2;
       const availableHeight = paper.heightMm - margin * 2;
-      if (!Number.isFinite(scale) || scale <= 0 || availableWidth <= 0 || availableHeight <= 0 || photoCount < 1) {
+      if (
+        !Number.isFinite(scale) || scale <= 0 ||
+        !Number.isFinite(margin) || !Number.isFinite(gap) ||
+        availableWidth <= 0 || availableHeight <= 0 || photoCount < 1
+      ) {
         throw new Error("INVALID_LAYOUT");
       }
 
       let grid;
-      if (gridMode === "custom") {
+      let fixedCellWidthMm = null;
+      let fixedCellHeightMm = null;
+      if (gridMode === "fixed") {
+        fixedCellWidthMm = Number(photoWidthMm);
+        fixedCellHeightMm = Number(photoHeightMm);
+        if (
+          !Number.isFinite(fixedCellWidthMm) || fixedCellWidthMm < MIN_PHOTO_SIZE_MM ||
+          !Number.isFinite(fixedCellHeightMm) || fixedCellHeightMm < MIN_PHOTO_SIZE_MM
+        ) throw new Error("INVALID_PHOTO_SIZE");
+        grid = [
+          getFittingCellCount(availableWidth, fixedCellWidthMm, gap),
+          getFittingCellCount(availableHeight, fixedCellHeightMm, gap)
+        ];
+      } else if (gridMode === "custom") {
         grid = [toGridSize(columns), toGridSize(rows)];
       } else {
-        grid = getAutoGrid(photoCount, paper.widthMm > paper.heightMm);
+        grid = getAutoGrid(photoCount, availableWidth / availableHeight);
       }
 
       const [columnCount, rowCount] = grid;
       if (columnCount < 1 || rowCount < 1) throw new Error("CELLS_DO_NOT_FIT");
       const slotCount = columnCount * rowCount;
-      if (photoCount > 1 && slotCount < photoCount) throw new Error("GRID_TOO_SMALL");
+      if (photoCount > 1 && slotCount < photoCount) {
+        const error = new Error("GRID_TOO_SMALL");
+        error.capacity = slotCount;
+        error.selected = photoCount;
+        throw error;
+      }
 
-      const cellWidthMm = (availableWidth - (columnCount - 1) * gap) / columnCount;
-      const cellHeightMm = (availableHeight - (rowCount - 1) * gap) / rowCount;
+      const cellWidthMm = fixedCellWidthMm ?? (availableWidth - (columnCount - 1) * gap) / columnCount;
+      const cellHeightMm = fixedCellHeightMm ?? (availableHeight - (rowCount - 1) * gap) / rowCount;
       if (cellWidthMm <= 0 || cellHeightMm <= 0) throw new Error("CELLS_DO_NOT_FIT");
-      const startXmm = margin;
-      const startYmm = margin;
+      const occupiedWidthMm = columnCount * cellWidthMm + (columnCount - 1) * gap;
+      const occupiedHeightMm = rowCount * cellHeightMm + (rowCount - 1) * gap;
+      const startXmm = margin + (availableWidth - occupiedWidthMm) / 2;
+      const startYmm = margin + (availableHeight - occupiedHeightMm) / 2;
 
       const filledCellCount = photoCount === 1 ? slotCount : photoCount;
       const cells = Array.from({ length: filledCellCount }, (_, index) => {
@@ -229,7 +282,35 @@
         cells,
         scale,
         marginMm: margin,
-        gapMm: gap
+        gapMm: gap,
+        photoFit: photoFit === "cover" ? "cover" : "contain"
+      };
+    }
+
+    function fitSheetPlanToPixels(plan, maxPixels) {
+      const width = Number(plan?.widthPx);
+      const height = Number(plan?.heightPx);
+      const limit = Number(maxPixels);
+      if (!Number.isFinite(width) || width <= 0 || !Number.isFinite(height) || height <= 0 || !Number.isFinite(limit) || limit <= 0) {
+        throw new Error("INVALID_PREVIEW_LIMIT");
+      }
+
+      const pixelCount = width * height;
+      if (pixelCount <= limit) return plan;
+
+      const factor = Math.sqrt(limit / pixelCount);
+      return {
+        ...plan,
+        widthPx: Math.max(1, Math.floor(width * factor)),
+        heightPx: Math.max(1, Math.floor(height * factor)),
+        scale: plan.scale * factor,
+        cells: plan.cells.map(cell => ({
+          ...cell,
+          x: cell.x * factor,
+          y: cell.y * factor,
+          width: cell.width * factor,
+          height: cell.height * factor
+        }))
       };
     }
 
@@ -246,14 +327,33 @@
       });
     }
 
-    function getAutoGrid(count, landscape) {
+    function getAutoGrid(count, paperAspect) {
+      const landscape = paperAspect > 1;
       if (count === 1) return [1, 1];
       if (count === 2) return landscape ? [2, 1] : [1, 2];
       if (count <= 4) return [2, 2];
       if (count <= 6) return landscape ? [3, 2] : [2, 3];
       if (count <= 8) return landscape ? [4, 2] : [2, 4];
       if (count === 9) return [3, 3];
-      return landscape ? [4, 3] : [3, 4];
+      if (count <= 12) return landscape ? [4, 3] : [3, 4];
+
+      let best = null;
+      for (let columnCount = 1; columnCount <= count; columnCount++) {
+        const rowCount = Math.ceil(count / columnCount);
+        const emptyCount = columnCount * rowCount - count;
+        const aspectError = Math.abs(Math.log((columnCount / rowCount) / paperAspect));
+        const score = aspectError + emptyCount / count * 0.5;
+        if (!best || score < best.score) best = { columns: columnCount, rows: rowCount, score };
+      }
+      return [best.columns, best.rows];
+    }
+
+    function getFittingCellCount(availableSize, cellSize, gap) {
+      const ratio = (availableSize + gap) / (cellSize + gap);
+      const nearestInteger = Math.round(ratio);
+      return Math.abs(ratio - nearestInteger) <= Math.max(1, Math.abs(ratio)) * 1e-12
+        ? nearestInteger
+        : Math.floor(ratio);
     }
 
     function toGridSize(value) {
@@ -261,15 +361,62 @@
       return Number.isFinite(size) ? size : 0;
     }
 
-    return { resolvePaper, getPhotoIndexAtPoint, getPhotoIndexFromViewportPoint, getCustomGridDefaults, buildSheetPlan, getCutMarkSegments };
+    return { resolvePaper, getPhotoIndexAtPoint, getPhotoIndexFromViewportPoint, getCustomGridDefaults, buildSheetPlan, fitSheetPlanToPixels, getCutMarkSegments };
   })();
 
   modules.photos = (() => {
-    const MAX_PHOTOS = 12;
-
-    function getPhotoSelectionError(selectedCount, acceptedCount, totalCount) {
+    function getPhotoSelectionError(selectedCount, acceptedCount) {
       if (acceptedCount < 1 || acceptedCount !== selectedCount) return "needPhotos";
-      return totalCount > MAX_PHOTOS ? "photoLimit" : null;
+      return null;
+    }
+
+    async function loadPhotosWithLimit(files, decoder, {
+      concurrency = 3,
+      onProgress = () => {},
+      isCancelled = () => false
+    } = {}) {
+      const items = [...files];
+      const results = Array(items.length);
+      const workerCount = Math.min(items.length, Math.max(1, Math.trunc(Number(concurrency)) || 1));
+      let nextIndex = 0;
+      let completed = 0;
+
+      const worker = async () => {
+        while (nextIndex < items.length) {
+          if (isCancelled()) return;
+          const index = nextIndex++;
+          try {
+            results[index] = { status: "fulfilled", value: await decoder(items[index]) };
+          } catch (reason) {
+            results[index] = { status: "rejected", reason };
+          }
+          completed++;
+          onProgress(completed, items.length);
+        }
+      };
+
+      await Promise.all(Array.from({ length: workerCount }, worker));
+      for (let index = 0; index < results.length; index++) {
+        if (!results[index]) results[index] = { status: "cancelled" };
+      }
+      return results;
+    }
+
+    function snapshotPhotosForRender(photos) {
+      return photos.map(photo => ({ source: photo.source, edit: { ...photo.edit } }));
+    }
+
+    function getTotalPhotoPixels(photos) {
+      return photos.reduce((total, photo) => {
+        const width = Number(photo.source.width || photo.source.naturalWidth) || 0;
+        const height = Number(photo.source.height || photo.source.naturalHeight) || 0;
+        return total + width * height;
+      }, 0);
+    }
+
+    function splitItemsAtLimit(items, limit) {
+      const splitIndex = Math.max(0, Math.trunc(Number(limit)) || 0);
+      return { kept: items.slice(0, splitIndex), removed: items.slice(splitIndex) };
     }
 
     function moveItem(items, fromIndex, toIndex) {
@@ -322,7 +469,7 @@
       });
     }
 
-    return { MAX_PHOTOS, getPhotoSelectionError, moveItem, removeItem, createPhoto, disposePhotos, editPhoto };
+    return { getPhotoSelectionError, loadPhotosWithLimit, snapshotPhotosForRender, getTotalPhotoPixels, splitItemsAtLimit, moveItem, removeItem, createPhoto, disposePhotos, editPhoto };
   })();
 
   modules.pngDpi = (() => {
@@ -512,22 +659,27 @@
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, canvas.width, canvas.height);
 
-      for (const cell of plan.cells) drawPhoto(context, photos[cell.photoIndex], cell);
+      for (const cell of plan.cells) drawPhoto(context, photos[cell.photoIndex], cell, plan.photoFit);
       if (drawCutMarks) drawMarks(context, plan);
     }
 
-    function drawPhoto(context, photo, cell) {
+    function drawPhoto(context, photo, cell, photoFit) {
       const image = photo.source;
       const sourceWidth = image.width || image.naturalWidth;
       const sourceHeight = image.height || image.naturalHeight;
       const rotated = photo.edit.rotation % 180 !== 0;
       const fittedWidth = rotated ? sourceHeight : sourceWidth;
       const fittedHeight = rotated ? sourceWidth : sourceHeight;
-      const scale = Math.min(cell.width / fittedWidth, cell.height / fittedHeight);
+      const scale = (photoFit === "cover" ? Math.max : Math.min)(cell.width / fittedWidth, cell.height / fittedHeight);
       const drawWidth = Math.round(sourceWidth * scale);
       const drawHeight = Math.round(sourceHeight * scale);
 
       context.save();
+      if (photoFit === "cover") {
+        context.beginPath();
+        context.rect(cell.x, cell.y, cell.width, cell.height);
+        context.clip();
+      }
       context.imageSmoothingEnabled = true;
       context.imageSmoothingQuality = "high";
       context.translate(cell.x + cell.width / 2, cell.y + cell.height / 2);
@@ -559,6 +711,31 @@
   modules.export = (() => {
     const { buildPdf } = modules.pdf;
     const { setJpegDpi, setPngDpi } = modules.pngDpi;
+
+    const LARGE_OUTPUT_PIXELS = 64_000_000;
+    const MAX_SINGLE_CANVAS_PIXELS = 240_000_000;
+
+    function canAttemptFullResolutionExport(plan) {
+      return Number(plan.widthPx) * Number(plan.heightPx) <= MAX_SINGLE_CANVAS_PIXELS;
+    }
+
+    function getExportFailureDetails(plan) {
+      const width = Number(plan.widthPx);
+      const height = Number(plan.heightPx);
+      const pixelCount = width * height;
+      if (pixelCount > LARGE_OUTPUT_PIXELS) {
+        return {
+          key: "outputTooLarge",
+          values: {
+            width,
+            height,
+            memoryGb: (pixelCount * 4 / 1_000_000_000).toFixed(1),
+            recommendedDpi: Number(plan.dpi) > 600 ? 600 : Number(plan.dpi) > 300 ? 300 : 150
+          }
+        };
+      }
+      return { key: "exportFailed", values: { width, height } };
+    }
 
     async function canvasToPng(canvas, dpi) {
       const png = await canvasBlob(canvas, "image/png");
@@ -616,17 +793,20 @@
       return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("CANVAS_EXPORT_FAILED")), type, quality));
     }
 
-    return { canvasToPng, canvasToJpeg, canvasToPdfBlob, downloadBlob, createPrintController };
+    return { canAttemptFullResolutionExport, getExportFailureDetails, canvasToPng, canvasToJpeg, canvasToPdfBlob, downloadBlob, createPrintController };
   })();
 
   (() => {
-    const { canvasToJpeg, canvasToPdfBlob, canvasToPng, createPrintController, downloadBlob } = modules.export;
+    const { canAttemptFullResolutionExport, canvasToJpeg, canvasToPdfBlob, canvasToPng, createPrintController, downloadBlob, getExportFailureDetails } = modules.export;
     const { translate } = modules.i18n;
-    const { buildSheetPlan, getCustomGridDefaults, getPhotoIndexFromViewportPoint, resolvePaper } = modules.layout;
-    const { MAX_PHOTOS, createPhoto, disposePhotos, editPhoto, getPhotoSelectionError, moveItem, removeItem } = modules.photos;
+    const { buildSheetPlan, fitSheetPlanToPixels, getCustomGridDefaults, getPhotoIndexFromViewportPoint, resolvePaper } = modules.layout;
+    const { createPhoto, disposePhotos, editPhoto, getPhotoSelectionError, getTotalPhotoPixels, loadPhotosWithLimit, moveItem, removeItem, snapshotPhotosForRender, splitItemsAtLimit } = modules.photos;
     const { renderSheet } = modules.renderer;
 
     const RENDER_DELAY_MS = 90;
+    const PREVIEW_MAX_PIXELS = 8_000_000;
+    const PHOTO_LOAD_CONCURRENCY = 3;
+    const MAX_DECODED_PHOTO_PIXELS = 240_000_000;
     const supportedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/bmp", "image/x-ms-bmp"]);
     const photoToolIcons = {
       rotateLeft: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V3h5"/><path d="M4.5 8A8 8 0 1 1 7 18.5"/></svg>',
@@ -661,27 +841,36 @@
       dpi: byId("dpi"),
       gridMode: byId("gridMode"),
       customGridFields: byId("customGridFields"),
+      photoSizeFields: byId("photoSizeFields"),
       columns: byId("columns"),
       rows: byId("rows"),
+      photoWidth: byId("photoWidth"),
+      photoHeight: byId("photoHeight"),
+      photoFit: byId("photoFit"),
       margin: byId("margin"),
       marginValue: byId("marginValue"),
       gap: byId("gap"),
       gapValue: byId("gapValue"),
-      cutMarks: byId("cutMarks")
+      cutMarks: byId("cutMarks"),
+      statusActions: byId("statusActions"),
+      trimPhotos: byId("trimPhotos")
     };
 
     const printController = createPrintController(byId("printImage"), byId("pageStyle"));
     let locale = localStorage.getItem("locale") === "en" ? "en" : "ru";
     let photos = [];
     let selectedPhotoIndex = 0;
-    let lastPng = null;
     let lastPlan = null;
+    let lastPreviewPlan = null;
     let lastFilename = "photo-sheet";
     let renderTimer = 0;
     let renderVersion = 0;
     let loadVersion = 0;
     let fileInputMode = "replace";
     let statusState = { key: null, values: {} };
+    let sheetVersion = 0;
+    let outputBusy = false;
+    let overflowCapacity = 0;
 
     bindEvents();
     setTheme(localStorage.getItem("theme") === "dark" ? "dark" : "light");
@@ -707,7 +896,7 @@
       bindFileDrop(elements.drop);
       bindFileDrop(elements.previewStage);
 
-      for (const select of [elements.paper, elements.orientation, elements.dpi, elements.gridMode]) {
+      for (const select of [elements.paper, elements.orientation, elements.dpi, elements.gridMode, elements.photoFit]) {
         select.addEventListener("change", () => {
           if (select === elements.gridMode && select.value === "custom") {
             const defaults = getCustomGridDefaults(lastPlan, Number(elements.columns.value), Number(elements.rows.value));
@@ -718,10 +907,11 @@
           scheduleRender();
         });
       }
-      for (const input of [elements.columns, elements.rows]) {
+      for (const input of [elements.columns, elements.rows, elements.photoWidth, elements.photoHeight]) {
         input.addEventListener("input", scheduleRender);
       }
       elements.cutMarks.addEventListener("change", scheduleRender);
+      elements.trimPhotos.addEventListener("click", trimPhotosToCapacity);
       bindRange(elements.margin, elements.marginValue);
       bindRange(elements.gap, elements.gapValue);
 
@@ -763,10 +953,7 @@
     }
 
     function openFilePicker(mode) {
-      if (mode === "add" && photos.length >= MAX_PHOTOS) {
-        showStatus("photoLimit");
-        return;
-      }
+      if (outputBusy) return;
       fileInputMode = mode;
       elements.fileInput.click();
     }
@@ -809,10 +996,10 @@
     }
 
     async function loadPhotos(files, mode) {
+      if (outputBusy) return;
       const version = ++loadVersion;
       const accepted = files.filter(isSupportedImage);
-      const totalCount = mode === "add" ? photos.length + accepted.length : accepted.length;
-      const selectionError = getPhotoSelectionError(files.length, accepted.length, totalCount);
+      const selectionError = getPhotoSelectionError(files.length, accepted.length);
       if (selectionError) {
         showStatus(selectionError);
         return;
@@ -821,15 +1008,43 @@
       clearTimeout(renderTimer);
       closePhotoMenu();
       renderVersion++;
-      showStatus("loading");
-      const results = await Promise.allSettled(accepted.map(createPhoto));
+      sheetVersion++;
+      disableExports();
+      showStatus("loadingProgress", { completed: 0, total: accepted.length });
+      let decodedPixelCount = mode === "add" ? getTotalPhotoPixels(photos) : 0;
+      let memoryLimitExceeded = false;
+      const decodePhotoWithinBudget = async file => {
+        const photo = await createPhoto(file);
+        const photoPixels = getTotalPhotoPixels([photo]);
+        if (memoryLimitExceeded || decodedPixelCount + photoPixels > MAX_DECODED_PHOTO_PIXELS) {
+          memoryLimitExceeded = true;
+          disposePhotos([photo]);
+          throw new Error("PHOTO_MEMORY_LIMIT");
+        }
+        decodedPixelCount += photoPixels;
+        return photo;
+      };
+      const results = await loadPhotosWithLimit(accepted, decodePhotoWithinBudget, {
+        concurrency: PHOTO_LOAD_CONCURRENCY,
+        isCancelled: () => version !== loadVersion || memoryLimitExceeded,
+        onProgress: (completed, total) => {
+          if (version === loadVersion) showStatus("loadingProgress", { completed, total });
+        }
+      });
       const loaded = results.filter(result => result.status === "fulfilled").map(result => result.value);
       if (version !== loadVersion) {
         disposePhotos(loaded);
         return;
       }
+      if (memoryLimitExceeded) {
+        disposePhotos(loaded);
+        if (photos.length > 0) await renderSelection();
+        showStatus("photoMemoryLimit");
+        return;
+      }
       if (results.some(result => result.status === "rejected")) {
         disposePhotos(loaded);
+        if (photos.length > 0) await renderSelection();
         showStatus("error");
         return;
       }
@@ -849,7 +1064,6 @@
 
     function syncPhotoControls() {
       elements.addPhotos.hidden = photos.length === 0;
-      elements.addPhotos.disabled = photos.length >= MAX_PHOTOS;
       elements.replacePhotos.textContent = t(photos.length === 0 ? "choosePhotos" : "replacePhotos");
       selectedPhotoIndex = Math.min(selectedPhotoIndex, Math.max(0, photos.length - 1));
       elements.sidebar.classList.toggle("has-photos", photos.length > 0);
@@ -862,9 +1076,9 @@
     }
 
     function getCanvasPhotoIndex(event) {
-      if (elements.canvas.hidden || !lastPlan) return -1;
+      if (elements.canvas.hidden || !lastPreviewPlan) return -1;
       return getPhotoIndexFromViewportPoint(
-        lastPlan.cells,
+        lastPreviewPlan.cells,
         elements.canvas.getBoundingClientRect(),
         elements.canvas,
         { x: event.clientX, y: event.clientY }
@@ -872,7 +1086,7 @@
     }
 
     function getPhotoCellViewportRect(photoIndex) {
-      const cell = lastPlan?.cells.find(item => item.photoIndex === photoIndex);
+      const cell = lastPreviewPlan?.cells.find(item => item.photoIndex === photoIndex);
       if (!cell || elements.canvas.hidden) return null;
       const bounds = elements.canvas.getBoundingClientRect();
       const scaleX = elements.canvas.clientWidth / elements.canvas.width;
@@ -905,7 +1119,7 @@
       let drag = null;
 
       elements.canvas.addEventListener("pointerdown", event => {
-        if (event.button !== 0 || photos.length === 0) return;
+        if (outputBusy || event.button !== 0 || photos.length === 0) return;
         const photoIndex = getCanvasPhotoIndex(event);
         if (photoIndex < 0) return;
         selectedPhotoIndex = photoIndex;
@@ -947,6 +1161,7 @@
     }
 
     function applySelectedPhotoAction(action) {
+      if (outputBusy) return;
       if (action === "addPhotos") return openFilePicker("add");
       if (action === "clearCanvas") return clearPhotos();
       if (action === "removePhoto") return removeSelectedPhoto();
@@ -957,6 +1172,7 @@
     }
 
     function openPhotoMenu(event) {
+      if (outputBusy) return;
       const photoIndex = event.type === "keydown" ? (photos.length > 0 ? selectedPhotoIndex : -1) : getCanvasPhotoIndex(event);
       event.preventDefault();
       if (photoIndex >= 0) {
@@ -984,7 +1200,7 @@
         button.type = "button";
         button.dataset.action = action;
         button.classList.toggle("danger", action === "removePhoto" || action === "clearCanvas");
-        button.disabled = (action === "addPhotos" && photos.length >= MAX_PHOTOS) || (action === "clearCanvas" && photos.length === 0);
+        button.disabled = action === "clearCanvas" && photos.length === 0;
         button.setAttribute("role", "menuitem");
         button.innerHTML = `${photoToolIcons[action]}<span>${t(action)}</span>`;
         return button;
@@ -1009,6 +1225,7 @@
     }
 
     function clearPhotos() {
+      if (outputBusy) return;
       loadVersion++;
       clearTimeout(renderTimer);
       renderVersion++;
@@ -1024,6 +1241,7 @@
     }
 
     function removeSelectedPhoto() {
+      if (outputBusy) return;
       const removed = photos[selectedPhotoIndex];
       if (!removed) return;
       clearTimeout(renderTimer);
@@ -1044,6 +1262,7 @@
     }
 
     function movePhoto(fromIndex, toIndex) {
+      if (outputBusy) return;
       if (fromIndex === toIndex || toIndex < 0 || toIndex >= photos.length) return;
       const selectedPhoto = photos[selectedPhotoIndex];
       photos = moveItem(photos, fromIndex, toIndex);
@@ -1054,6 +1273,7 @@
 
     function syncConditionalControls() {
       elements.customGridFields.hidden = elements.gridMode.value !== "custom";
+      elements.photoSizeFields.hidden = elements.gridMode.value !== "fixed";
       elements.previewStage.dataset.orientation = elements.orientation.value;
     }
 
@@ -1062,6 +1282,7 @@
       closePhotoMenu();
       if (photos.length === 0) return;
       renderVersion++;
+      sheetVersion++;
       disableExports();
       showStatus("processing");
       renderTimer = setTimeout(renderSelection, RENDER_DELAY_MS);
@@ -1077,40 +1298,29 @@
       try {
         await new Promise(resolve => requestAnimationFrame(resolve));
         plan = readPlan();
-        renderSheet(elements.canvas, photos, plan, elements.cutMarks.checked);
-        const png = await canvasToPng(elements.canvas, plan.dpi);
+        const previewPlan = fitSheetPlanToPixels(plan, PREVIEW_MAX_PIXELS);
+        renderSheet(elements.canvas, photos, previewPlan, elements.cutMarks.checked);
         if (version !== renderVersion) return;
 
         lastPlan = plan;
-        lastPng = png;
+        lastPreviewPlan = previewPlan;
         lastFilename = buildFilename(plan);
         elements.canvas.hidden = false;
         elements.emptyPreview.hidden = true;
         elements.saveFile.disabled = false;
         elements.print.disabled = false;
-        showStatus("ready", {
-          width: plan.widthPx,
-          height: plan.heightPx,
-          columns: plan.columns,
-          rows: plan.rows,
-          copies: plan.cells.length
-        });
+        showPlanReady(plan);
       } catch (error) {
         if (version !== renderVersion) return;
-        lastPng = null;
+        lastPreviewPlan = null;
         elements.canvas.hidden = true;
         elements.emptyPreview.hidden = false;
-        if (error?.message === "TOO_LARGE" && plan) {
-          lastPlan = plan;
-          lastFilename = buildFilename(plan);
-          elements.canvas.width = 0;
-          elements.canvas.height = 0;
-          elements.saveFile.disabled = false;
-          showStatus("tooLarge");
-          return;
-        }
         lastPlan = null;
-        showStatus(errorMessageKey(error));
+        const key = errorMessageKey(error);
+        const values = key === "gridTooSmall"
+          ? { selected: error.selected ?? photos.length, capacity: error.capacity ?? 0 }
+          : {};
+        showStatus(key, values);
       }
     }
 
@@ -1124,6 +1334,9 @@
         gridMode: elements.gridMode.value,
         columns: Number(elements.columns.value),
         rows: Number(elements.rows.value),
+        photoWidthMm: Number(elements.photoWidth.value),
+        photoHeightMm: Number(elements.photoHeight.value),
+        photoFit: elements.gridMode.value === "fixed" ? elements.photoFit.value : "contain",
         photoCount: photos.length
       });
     }
@@ -1134,56 +1347,117 @@
     }
 
     async function saveSelectedFile() {
-      if (!lastPlan) return;
-      elements.saveFile.disabled = true;
-      const exportCanvas = lastPng ? elements.canvas : document.createElement("canvas");
+      if (!lastPlan || outputBusy) return;
+      const plan = lastPlan;
+      const filename = lastFilename;
+      const format = elements.exportFormat.value;
+      const photosSnapshot = snapshotPhotosForRender(photos);
+      const drawCutMarks = elements.cutMarks.checked;
+      const version = sheetVersion;
+      setOutputBusy(true);
       try {
-        if (!lastPng) {
-          showStatus("processing");
-          await new Promise(resolve => requestAnimationFrame(resolve));
-          renderSheet(exportCanvas, photos, lastPlan, elements.cutMarks.checked, Infinity);
-        }
-        const format = elements.exportFormat.value;
-        const blob = format === "pdf"
-          ? await canvasToPdfBlob(exportCanvas, lastPlan)
-          : format === "jpg" ? await canvasToJpeg(exportCanvas, lastPlan.dpi) : lastPng ?? await canvasToPng(exportCanvas, lastPlan.dpi);
-        downloadBlob(blob, `${lastFilename}.${format}`);
-        if (!lastPng) showStatus("tooLarge");
+        showStatus("processing");
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const blob = await createOutputBlob(format, plan, photosSnapshot, drawCutMarks);
+        downloadBlob(blob, `${filename}.${format}`);
+        if (version === sheetVersion) showPlanReady(plan);
       } catch {
-        showStatus("error");
+        if (version === sheetVersion) showExportFailure(plan);
       } finally {
-        if (!lastPng) {
-          exportCanvas.width = 0;
-          exportCanvas.height = 0;
-        }
-        elements.saveFile.disabled = !lastPlan;
+        setOutputBusy(false);
       }
     }
 
     async function printSheet() {
-      if (!lastPng || !lastPlan) return;
-      elements.print.disabled = true;
+      if (!lastPlan || outputBusy) return;
+      const plan = lastPlan;
+      const photosSnapshot = snapshotPhotosForRender(photos);
+      const drawCutMarks = elements.cutMarks.checked;
+      const version = sheetVersion;
+      setOutputBusy(true);
       try {
-        await printController.print(lastPng, lastPlan);
+        showStatus("processing");
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        const png = await createOutputBlob("png", plan, photosSnapshot, drawCutMarks);
+        await printController.print(png, plan);
+        if (version === sheetVersion) showPlanReady(plan);
       } catch {
-        showStatus("error");
+        if (version === sheetVersion) showExportFailure(plan);
       } finally {
-        elements.print.disabled = !lastPlan;
+        setOutputBusy(false);
       }
     }
 
+    async function createOutputBlob(format, plan, photosSnapshot, drawCutMarks) {
+      if (!canAttemptFullResolutionExport(plan)) throw new Error("OUTPUT_TOO_LARGE");
+      const exportCanvas = document.createElement("canvas");
+      try {
+        renderSheet(exportCanvas, photosSnapshot, plan, drawCutMarks, Infinity);
+        if (format === "pdf") return await canvasToPdfBlob(exportCanvas, plan);
+        if (format === "jpg") return await canvasToJpeg(exportCanvas, plan.dpi);
+        return await canvasToPng(exportCanvas, plan.dpi);
+      } finally {
+        exportCanvas.width = 0;
+        exportCanvas.height = 0;
+      }
+    }
+
+    function showPlanReady(plan) {
+      showStatus("ready", {
+        width: plan.widthPx,
+        height: plan.heightPx,
+        columns: plan.columns,
+        rows: plan.rows,
+        copies: plan.cells.length
+      });
+    }
+
+    function showExportFailure(plan) {
+      const failure = getExportFailureDetails(plan);
+      showStatus(failure.key, failure.values);
+    }
+
     function disableExports() {
-      lastPng = null;
       lastPlan = null;
+      lastPreviewPlan = null;
       elements.saveFile.disabled = true;
       elements.print.disabled = true;
     }
 
+    function setOutputBusy(busy) {
+      outputBusy = busy;
+      if (busy) {
+        closePhotoMenu();
+        hideReorderTarget();
+      }
+      const controls = [
+        elements.paper, elements.orientation, elements.dpi, elements.gridMode,
+        elements.columns, elements.rows, elements.photoWidth, elements.photoHeight,
+        elements.photoFit, elements.margin, elements.marginValue, elements.gap,
+        elements.gapValue, elements.cutMarks, elements.replacePhotos, elements.addPhotos,
+        elements.exportFormat, elements.trimPhotos
+      ];
+      for (const control of controls) control.disabled = busy;
+      elements.saveFile.disabled = busy || !lastPlan;
+      elements.print.disabled = busy || !lastPlan;
+      elements.previewStage.classList.toggle("output-busy", busy);
+    }
+
+    function trimPhotosToCapacity() {
+      if (outputBusy || overflowCapacity < 1 || photos.length <= overflowCapacity) return;
+      const { kept, removed } = splitItemsAtLimit(photos, overflowCapacity);
+      disposePhotos(removed);
+      photos = kept;
+      selectedPhotoIndex = Math.min(selectedPhotoIndex, photos.length - 1);
+      syncPhotoControls();
+      renderSelection();
+    }
+
     function errorMessageKey(error) {
       return {
-        TOO_LARGE: "tooLarge",
         GRID_TOO_SMALL: "gridTooSmall",
         CELLS_DO_NOT_FIT: "cellsDoNotFit",
+        INVALID_PHOTO_SIZE: "invalidPhotoSize",
         INVALID_PAPER: "invalidPaper"
       }[error?.message] ?? "error";
     }
@@ -1211,14 +1485,40 @@
 
     function showStatus(key, values = {}) {
       statusState = { key, values };
+      overflowCapacity = key === "gridTooSmall" ? Number(values.capacity) || 0 : 0;
       renderStatus();
     }
 
     function renderStatus() {
-      const isLimitError = statusState.key === "photoLimit";
-      elements.status.textContent = statusState.key ? t(statusState.key, statusState.values) : "";
-      elements.status.classList.toggle("status-error", isLimitError);
-      elements.status.setAttribute("aria-live", isLimitError ? "assertive" : "polite");
+      const richError = {
+        outputTooLarge: ["outputTooLargeTitle", "outputTooLargeDetail"],
+        exportFailed: ["exportFailedTitle", "exportFailedDetail"]
+      }[statusState.key];
+      const isError = Boolean(richError) || ["needPhotos", "photoMemoryLimit", "gridTooSmall", "cellsDoNotFit", "invalidPhotoSize", "error"].includes(statusState.key);
+      elements.status.replaceChildren();
+      elements.status.classList.toggle("status-rich-error", Boolean(richError));
+      if (richError) {
+        const icon = document.createElement("span");
+        icon.className = "status-error-icon";
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = "!";
+        const copy = document.createElement("span");
+        copy.className = "status-error-copy";
+        const title = document.createElement("strong");
+        title.textContent = t(richError[0], statusState.values);
+        const detail = document.createElement("span");
+        detail.textContent = t(richError[1], statusState.values);
+        copy.append(title, detail);
+        elements.status.append(icon, copy);
+      } else {
+        elements.status.textContent = statusState.key ? t(statusState.key, statusState.values) : "";
+      }
+      elements.status.classList.toggle("status-error", isError);
+      elements.status.setAttribute("role", isError ? "alert" : "status");
+      elements.status.setAttribute("aria-live", isError ? "assertive" : "polite");
+      const canTrim = statusState.key === "gridTooSmall" && overflowCapacity > 0;
+      elements.statusActions.hidden = !canTrim;
+      elements.trimPhotos.textContent = canTrim ? t("trimPhotos", { capacity: overflowCapacity }) : "";
     }
 
     function t(key, values) {

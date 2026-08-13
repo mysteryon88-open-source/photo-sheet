@@ -1,6 +1,6 @@
 # Photo Sheet
 
-Create print-ready photo sheets directly in your browser. Arrange up to 12 images, choose the paper and grid, then export to PNG, JPG, or PDF.
+Create print-ready photo sheets directly in your browser. Arrange images, choose the paper and exact photo size or grid, then export to PNG, JPG, or PDF.
 
 > Photos never leave your device. Photo Sheet has no server, uploads, tracking, runtime dependencies, or installation step.
 
@@ -9,8 +9,9 @@ Create print-ready photo sheets directly in your browser. Arrange up to 12 image
 - Works locally and remains fully offline.
 - Accepts JPG, PNG, WEBP, and BMP images.
 - Supports common photo-paper sizes plus A4 and A3, in portrait or landscape orientation.
-- Builds automatic layouts or custom grids with adjustable margins and spacing.
-- Repeats a single photo across the grid or arranges up to 12 different photos.
+- Builds automatic layouts, exact-size photo layouts, or custom grids with adjustable margins and spacing.
+- Fits as many exact-size photos as possible on the selected paper and centres the occupied grid.
+- Repeats a single photo across the grid or arranges any number of different photos that fit on the sheet.
 - Reorders photos directly on the sheet by dragging.
 - Rotates, flips, removes, and adds photos from the sheet context menu.
 - Adds optional crop marks.
@@ -26,9 +27,9 @@ That is all.
 
 ## How to use
 
-1. Choose or drop between 1 and 12 photos onto the sheet.
+1. Choose or drop one or more photos onto the sheet.
 2. Select the paper size, orientation, and DPI.
-3. Use the automatic layout or switch to a custom grid.
+3. Use the automatic layout, enter the desired printed cell width and height, or switch to a custom grid. In cell-size mode, choose whether to fit each photo entirely or fill the cell with cropping.
 4. Adjust the margins, spacing, and crop marks.
 5. Drag photos on the sheet to change their print order.
 6. Right-click a photo to rotate, flip, or remove it.
@@ -45,6 +46,5 @@ With one selected image, a custom grid fills every cell with a copy of that imag
 
 ## Limits
 
-- A sheet can contain up to 12 different photos.
 - PDF export currently creates one page.
-- Very large paper and DPI combinations skip the preview; saving is still available, but the browser may take longer or run out of memory.
+- Very large paper and DPI combinations use a reduced-resolution preview while saving and printing still render at the selected DPI. Full-resolution output can take longer or fail if the browser runs out of memory.
