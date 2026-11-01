@@ -32,8 +32,12 @@ function drawPhoto(context, photo, cell, photoFit) {
   const fittedWidth = rotated ? sourceHeight : sourceWidth;
   const fittedHeight = rotated ? sourceWidth : sourceHeight;
   const scale = (photoFit === "cover" ? Math.max : Math.min)(cell.width / fittedWidth, cell.height / fittedHeight);
-  const drawWidth = Math.round(sourceWidth * scale);
-  const drawHeight = Math.round(sourceHeight * scale);
+  const drawWidth = sourceWidth * scale;
+  const drawHeight = sourceHeight * scale;
+  const cropX = Number.isFinite(photo.edit.cropX) ? Math.max(-1, Math.min(1, photo.edit.cropX)) : 0;
+  const cropY = Number.isFinite(photo.edit.cropY) ? Math.max(-1, Math.min(1, photo.edit.cropY)) : 0;
+  const offsetX = photoFit === "cover" ? cropX * Math.max(0, (rotated ? drawHeight : drawWidth) - cell.width) / 2 : 0;
+  const offsetY = photoFit === "cover" ? cropY * Math.max(0, (rotated ? drawWidth : drawHeight) - cell.height) / 2 : 0;
 
   context.save();
   if (photoFit === "cover") {
@@ -43,7 +47,7 @@ function drawPhoto(context, photo, cell, photoFit) {
   }
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = "high";
-  context.translate(cell.x + cell.width / 2, cell.y + cell.height / 2);
+  context.translate(cell.x + cell.width / 2 + offsetX, cell.y + cell.height / 2 + offsetY);
   context.rotate(photo.edit.rotation * Math.PI / 180);
   context.scale(photo.edit.flipX ? -1 : 1, photo.edit.flipY ? -1 : 1);
   context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);

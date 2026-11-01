@@ -27,6 +27,11 @@
         photoFitLabel: "Placement in cell",
         photoFitContain: "Fit entire photo",
         photoFitCover: "Fill and crop",
+        cropTitle: "Crop · photo {number}",
+        cropHorizontal: "Left — right",
+        cropVertical: "Up — down",
+        cropReset: "Center",
+        cropHint: "Click a photo on the sheet to select it. Only the cropped axis can be shifted.",
         marginLabel: "Sheet margin",
         gapLabel: "Gap between photos",
         cutMarksLabel: "Add crop marks",
@@ -94,6 +99,11 @@
         photoFitLabel: "Размещение в ячейке",
         photoFitContain: "Вписать целиком",
         photoFitCover: "Заполнить с обрезкой",
+        cropTitle: "Кадрирование · фото {number}",
+        cropHorizontal: "Влево — вправо",
+        cropVertical: "Вверх — вниз",
+        cropReset: "По центру",
+        cropHint: "Выберите фото щелчком на листе. Сдвиг доступен по обрезаемой стороне.",
         marginLabel: "Поля листа",
         gapLabel: "Зазор между фото",
         cutMarksLabel: "Добавить метки реза",
@@ -458,7 +468,7 @@
     async function createPhoto(file) {
       return {
         source: await loadOrientedImage(file),
-        edit: { rotation: 0, flipX: false, flipY: false }
+        edit: { rotation: 0, flipX: false, flipY: false, cropX: 0, cropY: 0 }
       };
     }
 
@@ -779,8 +789,12 @@
       const fittedWidth = rotated ? sourceHeight : sourceWidth;
       const fittedHeight = rotated ? sourceWidth : sourceHeight;
       const scale = (photoFit === "cover" ? Math.max : Math.min)(cell.width / fittedWidth, cell.height / fittedHeight);
-      const drawWidth = Math.round(sourceWidth * scale);
-      const drawHeight = Math.round(sourceHeight * scale);
+      const drawWidth = sourceWidth * scale;
+      const drawHeight = sourceHeight * scale;
+      const cropX = Number.isFinite(photo.edit.cropX) ? Math.max(-1, Math.min(1, photo.edit.cropX)) : 0;
+      const cropY = Number.isFinite(photo.edit.cropY) ? Math.max(-1, Math.min(1, photo.edit.cropY)) : 0;
+      const offsetX = photoFit === "cover" ? cropX * Math.max(0, (rotated ? drawHeight : drawWidth) - cell.width) / 2 : 0;
+      const offsetY = photoFit === "cover" ? cropY * Math.max(0, (rotated ? drawWidth : drawHeight) - cell.height) / 2 : 0;
 
       context.save();
       if (photoFit === "cover") {
@@ -790,7 +804,7 @@
       }
       context.imageSmoothingEnabled = true;
       context.imageSmoothingQuality = "high";
-      context.translate(cell.x + cell.width / 2, cell.y + cell.height / 2);
+      context.translate(cell.x + cell.width / 2 + offsetX, cell.y + cell.height / 2 + offsetY);
       context.rotate(photo.edit.rotation * Math.PI / 180);
       context.scale(photo.edit.flipX ? -1 : 1, photo.edit.flipY ? -1 : 1);
       context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
@@ -955,6 +969,11 @@
       photoWidth: byId("photoWidth"),
       photoHeight: byId("photoHeight"),
       photoFit: byId("photoFit"),
+      cropControls: byId("cropControls"),
+      cropTitle: byId("cropTitle"),
+      cropX: byId("cropX"),
+      cropY: byId("cropY"),
+      cropReset: byId("cropReset"),
       margin: byId("margin"),
       marginValue: byId("marginValue"),
       gap: byId("gap"),
@@ -1009,6 +1028,7 @@
             elements.rows.value = String(lastPlan?.rows ?? Number(elements.rows.value));
           }
           syncConditionalControls();
+          syncCropControls();
           scheduleRender();
         });
       }
@@ -1016,6 +1036,20 @@
         input.addEventListener("input", scheduleRender);
       }
       elements.cutMarks.addEventListener("change", scheduleRender);
+      for (const axis of ["cropX", "cropY"]) {
+        elements[axis].addEventListener("input", () => {
+          if (outputBusy || !photos[selectedPhotoIndex]) return;
+          photos[selectedPhotoIndex].edit[axis] = Number(elements[axis].value) / 100;
+          scheduleRender();
+        });
+      }
+      elements.cropReset.addEventListener("click", () => {
+        if (outputBusy || !photos[selectedPhotoIndex]) return;
+        photos[selectedPhotoIndex].edit.cropX = 0;
+        photos[selectedPhotoIndex].edit.cropY = 0;
+        syncCropControls();
+        scheduleRender();
+      });
       elements.trimPhotos.addEventListener("click", trimPhotosToCapacity);
       bindRange(elements.margin, elements.marginValue);
       bindRange(elements.gap, elements.gapValue);
@@ -1166,6 +1200,25 @@
         number: selectedPhotoIndex + 1,
         count: photos.length
       }));
+      syncCropControls();
+    }
+
+    function syncCropControls() {
+      const photo = photos[selectedPhotoIndex];
+      elements.cropControls.hidden = !photo || elements.photoFit.value !== "cover";
+      if (!photo) return;
+      elements.cropTitle.textContent = t("cropTitle", { number: selectedPhotoIndex + 1 });
+      elements.cropX.value = String((photo.edit.cropX ?? 0) * 100);
+      elements.cropY.value = String((photo.edit.cropY ?? 0) * 100);
+      const cell = lastPreviewPlan?.cells.find(item => item.photoIndex === selectedPhotoIndex);
+      const viewport = lastPreviewPlan?.photoFrameMm ?? cell;
+      const width = photo.source.width || photo.source.naturalWidth;
+      const height = photo.source.height || photo.source.naturalHeight;
+      const aspect = photo.edit.rotation % 180 === 0 ? width / height : height / width;
+      const cellAspect = viewport ? viewport.width / viewport.height : aspect;
+      elements.cropX.disabled = outputBusy || aspect <= cellAspect + 1e-9;
+      elements.cropY.disabled = outputBusy || aspect >= cellAspect - 1e-9;
+      elements.cropReset.disabled = outputBusy;
     }
 
     function getCanvasPhotoIndex(event) {
@@ -1400,6 +1453,7 @@
         const hasOverflow = plan.overflowCount > 0;
         lastPlan = hasOverflow ? null : plan;
         lastPreviewPlan = previewPlan;
+        syncCropControls();
         elements.canvas.hidden = false;
         elements.emptyPreview.hidden = true;
         elements.saveFile.disabled = hasOverflow;
@@ -1528,10 +1582,12 @@
         elements.paper, elements.orientation, elements.dpi, elements.gridMode,
         elements.columns, elements.rows, elements.photoWidth, elements.photoHeight,
         elements.photoFit, elements.margin, elements.marginValue, elements.gap,
+        elements.cropX, elements.cropY, elements.cropReset,
         elements.gapValue, elements.cutMarks, elements.replacePhotos, elements.addPhotos,
         elements.exportFormat, elements.trimPhotos
       ];
       for (const control of controls) control.disabled = busy;
+      syncCropControls();
       elements.saveFile.disabled = busy || !lastPlan;
       elements.print.disabled = busy || !lastPlan;
       elements.previewStage.classList.toggle("output-busy", busy);

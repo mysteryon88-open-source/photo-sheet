@@ -48,6 +48,11 @@ const elements = {
   photoWidth: byId("photoWidth"),
   photoHeight: byId("photoHeight"),
   photoFit: byId("photoFit"),
+  cropControls: byId("cropControls"),
+  cropTitle: byId("cropTitle"),
+  cropX: byId("cropX"),
+  cropY: byId("cropY"),
+  cropReset: byId("cropReset"),
   margin: byId("margin"),
   marginValue: byId("marginValue"),
   gap: byId("gap"),
@@ -102,6 +107,7 @@ function bindEvents() {
         elements.rows.value = String(lastPlan?.rows ?? Number(elements.rows.value));
       }
       syncConditionalControls();
+      syncCropControls();
       scheduleRender();
     });
   }
@@ -109,6 +115,20 @@ function bindEvents() {
     input.addEventListener("input", scheduleRender);
   }
   elements.cutMarks.addEventListener("change", scheduleRender);
+  for (const axis of ["cropX", "cropY"]) {
+    elements[axis].addEventListener("input", () => {
+      if (outputBusy || !photos[selectedPhotoIndex]) return;
+      photos[selectedPhotoIndex].edit[axis] = Number(elements[axis].value) / 100;
+      scheduleRender();
+    });
+  }
+  elements.cropReset.addEventListener("click", () => {
+    if (outputBusy || !photos[selectedPhotoIndex]) return;
+    photos[selectedPhotoIndex].edit.cropX = 0;
+    photos[selectedPhotoIndex].edit.cropY = 0;
+    syncCropControls();
+    scheduleRender();
+  });
   elements.trimPhotos.addEventListener("click", trimPhotosToCapacity);
   bindRange(elements.margin, elements.marginValue);
   bindRange(elements.gap, elements.gapValue);
@@ -259,6 +279,25 @@ function syncPhotoControls() {
     number: selectedPhotoIndex + 1,
     count: photos.length
   }));
+  syncCropControls();
+}
+
+function syncCropControls() {
+  const photo = photos[selectedPhotoIndex];
+  elements.cropControls.hidden = !photo || elements.photoFit.value !== "cover";
+  if (!photo) return;
+  elements.cropTitle.textContent = t("cropTitle", { number: selectedPhotoIndex + 1 });
+  elements.cropX.value = String((photo.edit.cropX ?? 0) * 100);
+  elements.cropY.value = String((photo.edit.cropY ?? 0) * 100);
+  const cell = lastPreviewPlan?.cells.find(item => item.photoIndex === selectedPhotoIndex);
+  const viewport = lastPreviewPlan?.photoFrameMm ?? cell;
+  const width = photo.source.width || photo.source.naturalWidth;
+  const height = photo.source.height || photo.source.naturalHeight;
+  const aspect = photo.edit.rotation % 180 === 0 ? width / height : height / width;
+  const cellAspect = viewport ? viewport.width / viewport.height : aspect;
+  elements.cropX.disabled = outputBusy || aspect <= cellAspect + 1e-9;
+  elements.cropY.disabled = outputBusy || aspect >= cellAspect - 1e-9;
+  elements.cropReset.disabled = outputBusy;
 }
 
 function getCanvasPhotoIndex(event) {
@@ -493,6 +532,7 @@ async function renderSelection() {
     const hasOverflow = plan.overflowCount > 0;
     lastPlan = hasOverflow ? null : plan;
     lastPreviewPlan = previewPlan;
+    syncCropControls();
     elements.canvas.hidden = false;
     elements.emptyPreview.hidden = true;
     elements.saveFile.disabled = hasOverflow;
@@ -621,10 +661,12 @@ function setOutputBusy(busy) {
     elements.paper, elements.orientation, elements.dpi, elements.gridMode,
     elements.columns, elements.rows, elements.photoWidth, elements.photoHeight,
     elements.photoFit, elements.margin, elements.marginValue, elements.gap,
+    elements.cropX, elements.cropY, elements.cropReset,
     elements.gapValue, elements.cutMarks, elements.replacePhotos, elements.addPhotos,
     elements.exportFormat, elements.trimPhotos
   ];
   for (const control of controls) control.disabled = busy;
+  syncCropControls();
   elements.saveFile.disabled = busy || !lastPlan;
   elements.print.disabled = busy || !lastPlan;
   elements.previewStage.classList.toggle("output-busy", busy);

@@ -125,6 +125,20 @@
             </select>
           </label>
 
+        <fieldset id="cropControls" class="crop-controls" hidden>
+          <legend id="cropTitle"></legend>
+          <label class="control">
+            <span data-i18n="cropHorizontal">Влево — вправо</span>
+            <input id="cropX" type="range" min="-100" max="100" value="0" step="1" aria-describedby="cropHint">
+          </label>
+          <label class="control">
+            <span data-i18n="cropVertical">Вверх — вниз</span>
+            <input id="cropY" type="range" min="-100" max="100" value="0" step="1" aria-describedby="cropHint">
+          </label>
+          <button id="cropReset" type="button" data-i18n="cropReset">По центру</button>
+          <small id="cropHint" data-i18n="cropHint">Выберите фото щелчком на листе. Сдвиг доступен по обрезаемой стороне.</small>
+        </fieldset>
+
         <label class="toggle-control">
           <input id="cutMarks" type="checkbox">
           <span data-i18n="cutMarksLabel">Добавить метки реза</span>

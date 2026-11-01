@@ -79,7 +79,7 @@ export function getTotalPhotoPixels(photos) {
 export async function createPhoto(file) {
   return {
     source: await loadOrientedImage(file),
-    edit: { rotation: 0, flipX: false, flipY: false }
+    edit: { rotation: 0, flipX: false, flipY: false, cropX: 0, cropY: 0 }
   };
 }
 

@@ -455,14 +455,54 @@ test("photo pixel count is read from supported file headers without decoding", a
 
 test("photo render snapshots isolate later edit changes", () => {
   const source = { id: "bitmap" };
-  const photos = [{ source, edit: { rotation: 0, flipX: false, flipY: false } }];
+  const photos = [{ source, edit: { rotation: 0, flipX: false, flipY: false, cropX: -0.5, cropY: 0.75 } }];
 
   const snapshot = photoUtils.snapshotPhotosForRender?.(photos);
   photos[0].edit.rotation = 90;
+  photos[0].edit.cropX = 1;
 
   assert.ok(snapshot, "snapshotPhotosForRender must be exported");
   assert.equal(snapshot[0].source, source);
-  assert.deepEqual(snapshot[0].edit, { rotation: 0, flipX: false, flipY: false });
+  assert.deepEqual(snapshot[0].edit, { rotation: 0, flipX: false, flipY: false, cropX: -0.5, cropY: 0.75 });
+});
+
+test("crop shifts stay in screen axes, clamp at image edges, and preserve framed preview geometry", () => {
+  const basePlan = buildSheetPlan({ paper: { widthMm: 210, heightMm: 297 }, dpi: 254,
+    marginMm: 5, gapMm: 2, gridMode: "miniFrame", photoCount: 1 });
+  for (const plan of [basePlan, layout.fitSheetPlanToPixels(basePlan, 100_000)]) {
+    for (const rotation of [0, 90, 180, 270]) {
+      for (const [input, expected] of [[-2, -1], [-0.5, -0.5], [0, 0], [1, 1], [2, 1], [undefined, 0], [NaN, 0], [Infinity, 0]]) {
+        const calls = {};
+        const context = { fillRect() {}, save() {}, restore() {}, beginPath() {}, clip() {},
+          rect(...args) { calls.rect = args; }, translate(...args) { calls.center = args; },
+          rotate() {}, scale() {}, drawImage(...args) { calls.draw = args; } };
+        const photo = { source: { width: 400, height: 100 },
+          edit: { rotation, flipX: true, flipY: true, cropX: input, cropY: input } };
+        for (const photoFit of ["cover", "contain"]) {
+          renderSheet({ getContext: () => context }, [photo], { ...plan, photoFit }, false);
+          const cell = plan.cells.at(-1);
+          const width = 46 * plan.scale;
+          const height = 62 * plan.scale;
+          const centerX = cell.x + (4 + 23) * plan.scale;
+          const centerY = cell.y + (4 + 31) * plan.scale;
+          const rotated = rotation % 180 !== 0;
+          const factor = (photoFit === "cover" ? Math.max : Math.min)(width / (rotated ? 100 : 400), height / (rotated ? 400 : 100));
+          const extraX = photoFit === "cover" ? Math.max(0, (rotated ? 100 : 400) * factor - width) / 2 : 0;
+          const extraY = photoFit === "cover" ? Math.max(0, (rotated ? 400 : 100) * factor - height) / 2 : 0;
+          assert.ok(Math.abs(calls.center[0] - centerX - expected * extraX) < 1e-8);
+          assert.ok(Math.abs(calls.center[1] - centerY - expected * extraY) < 1e-8);
+          if (photoFit === "cover") {
+            const renderedWidth = calls.draw[rotated ? 4 : 3];
+            const renderedHeight = calls.draw[rotated ? 3 : 4];
+            assert.ok(calls.center[0] - renderedWidth / 2 <= calls.rect[0] + 1e-8);
+            assert.ok(calls.center[0] + renderedWidth / 2 >= calls.rect[0] + width - 1e-8);
+            assert.ok(calls.center[1] - renderedHeight / 2 <= calls.rect[1] + 1e-8);
+            assert.ok(calls.center[1] + renderedHeight / 2 >= calls.rect[1] + height - 1e-8);
+          }
+        }
+      }
+    }
+  }
 });
 
 test("decoded photo pixel totals use oriented source dimensions", () => {

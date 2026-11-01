@@ -83,6 +83,10 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .panel { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); box-shadow: inset 0 0 0 5px rgba(255, 255, 255, .2), 0 10px 24px var(--shadow); }
 .sidebar { display: flex; min-width: 0; min-height: 620px; padding: 20px; flex-direction: column; overflow: hidden; }
 .controls { display: grid; gap: 12px; }
+.crop-controls { display: grid; min-width: 0; gap: 8px; margin: 0; padding: 10px; border: 1px solid var(--line); border-radius: 3px; }
+.crop-controls[hidden] { display: none; }
+.crop-controls legend { color: var(--ink); font: 700 14px/1.25 Georgia, serif; }
+.crop-controls small { color: var(--muted); }
 .control { display: grid; min-width: 0; gap: 5px; color: var(--ink); font: 700 14px/1.25 Georgia, serif; }
 .control select, .control input[type="number"] { width: 100%; min-height: 40px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 3px; background: var(--panel-strong); color: var(--ink); font-family: "Trebuchet MS", Arial, sans-serif; font-size: 14px; font-weight: 400; }
 .control select, .export-format select { appearance: none; padding: 10px 48px 4px 10px; background-color: var(--panel-strong); background-image: var(--select-chevron); background-repeat: no-repeat; background-position: calc(100% - var(--select-arrow-right)) center; font-family: "Trebuchet MS", Arial, sans-serif; }
