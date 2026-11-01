@@ -385,7 +385,6 @@ function bindCanvasReorder() {
     drag = {
       pointerId: event.pointerId,
       fromIndex: photoIndex,
-      cell,
       targetCell: cell,
       photo,
       previewPhoto: { source: photo.source, edit: { ...photo.edit } },
@@ -410,7 +409,7 @@ function bindCanvasReorder() {
     drag.targetCell = hitCell(event);
     hideReorderTarget();
     elements.cropPreview.hidden = true;
-    if (drag.targetCell === drag.cell && drag.canCrop) {
+    if ((!drag.targetCell || drag.targetCell.photoIndex === drag.fromIndex) && drag.canCrop) {
       for (const [axis, overflow, delta] of [
         ["cropX", drag.geometry.overflowX, event.clientX - drag.startX],
         ["cropY", drag.geometry.overflowY, event.clientY - drag.startY]
@@ -439,10 +438,10 @@ function bindCanvasReorder() {
   function finishPhotoDrag(event, shouldMove) {
     if (drag?.pointerId !== event.pointerId) return;
     if (shouldMove) updateDrag(event);
-    const { active, fromIndex, targetCell, cell, photo, previewPhoto, canCrop } = drag;
+    const { active, fromIndex, targetCell, photo, previewPhoto, canCrop } = drag;
     cancelPhotoDrag();
     if (!active || !shouldMove || outputBusy || photos[fromIndex] !== photo) return;
-    if (targetCell === cell && canCrop) {
+    if ((!targetCell || targetCell.photoIndex === fromIndex) && canCrop) {
       photo.edit.cropX = previewPhoto.edit.cropX;
       photo.edit.cropY = previewPhoto.edit.cropY;
       scheduleRender();

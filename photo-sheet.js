@@ -29,7 +29,7 @@
         photoFitCover: "Fill and crop",
         cropTitle: "Crop · photo {number}",
         cropReset: "Center",
-        cropHint: "Drag within a card to adjust the crop. Drop onto another photo to reorder. Shift + arrows: fine adjustment. Esc: cancel.",
+        cropHint: "Drag to adjust the crop, even beyond the card or sheet. Drop onto another photo to reorder. Shift + arrows: fine adjustment. Esc: cancel.",
         marginLabel: "Sheet margin",
         gapLabel: "Gap between photos",
         cutMarksLabel: "Add crop marks",
@@ -99,7 +99,7 @@
         photoFitCover: "Заполнить с обрезкой",
         cropTitle: "Кадрирование · фото {number}",
         cropReset: "По центру",
-        cropHint: "Зажмите фото и двигайте внутри карточки — кадрирование. Отпустите над другой фотографией — перенос. Shift + стрелки — точный сдвиг, Esc — отмена.",
+        cropHint: "Зажмите фото и двигайте — можно выходить за края карточки и холста. Отпустите над другой фотографией — перенос. Shift + стрелки — точный сдвиг, Esc — отмена.",
         marginLabel: "Поля листа",
         gapLabel: "Зазор между фото",
         cutMarksLabel: "Добавить метки реза",
@@ -1334,7 +1334,6 @@
         drag = {
           pointerId: event.pointerId,
           fromIndex: photoIndex,
-          cell,
           targetCell: cell,
           photo,
           previewPhoto: { source: photo.source, edit: { ...photo.edit } },
@@ -1359,7 +1358,7 @@
         drag.targetCell = hitCell(event);
         hideReorderTarget();
         elements.cropPreview.hidden = true;
-        if (drag.targetCell === drag.cell && drag.canCrop) {
+        if ((!drag.targetCell || drag.targetCell.photoIndex === drag.fromIndex) && drag.canCrop) {
           for (const [axis, overflow, delta] of [
             ["cropX", drag.geometry.overflowX, event.clientX - drag.startX],
             ["cropY", drag.geometry.overflowY, event.clientY - drag.startY]
@@ -1388,10 +1387,10 @@
       function finishPhotoDrag(event, shouldMove) {
         if (drag?.pointerId !== event.pointerId) return;
         if (shouldMove) updateDrag(event);
-        const { active, fromIndex, targetCell, cell, photo, previewPhoto, canCrop } = drag;
+        const { active, fromIndex, targetCell, photo, previewPhoto, canCrop } = drag;
         cancelPhotoDrag();
         if (!active || !shouldMove || outputBusy || photos[fromIndex] !== photo) return;
-        if (targetCell === cell && canCrop) {
+        if ((!targetCell || targetCell.photoIndex === fromIndex) && canCrop) {
           photo.edit.cropX = previewPhoto.edit.cropX;
           photo.edit.cropY = previewPhoto.edit.cropY;
           scheduleRender();
