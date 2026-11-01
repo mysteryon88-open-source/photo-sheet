@@ -11,7 +11,16 @@ export function renderSheet(canvas, photos, plan, drawCutMarks, maxPixels = MAX_
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (const cell of plan.cells) drawPhoto(context, photos[cell.photoIndex], cell, plan.photoFit);
+  for (const cell of plan.cells) {
+    const frame = plan.photoFrameMm;
+    const imageCell = frame ? {
+      x: cell.x + frame.left * plan.scale,
+      y: cell.y + frame.top * plan.scale,
+      width: frame.width * plan.scale,
+      height: frame.height * plan.scale
+    } : cell;
+    drawPhoto(context, photos[cell.photoIndex], imageCell, plan.photoFit);
+  }
   if (drawCutMarks) drawMarks(context, plan);
 }
 

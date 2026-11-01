@@ -88,6 +88,10 @@
               <option value="auto" data-i18n="gridAuto">Автоматическая</option>
               <option value="fixed" data-i18n="gridFixed">По размеру ячейки</option>
               <option value="custom" data-i18n="gridCustom">Своя</option>
+              <option value="mini" data-i18n="presetMini">Polaroid Mini · 54 × 86 мм</option>
+              <option value="wide" data-i18n="presetWide">Polaroid Wide · 108 × 86 мм</option>
+              <option value="miniFrame" data-i18n="presetMiniFrame">Mini с рамкой · фото 46 × 62 мм</option>
+              <option value="wideFrame" data-i18n="presetWideFrame">Wide с рамкой · фото 99 × 62 мм</option>
             </select>
           </label>
         </div>
@@ -112,14 +116,14 @@
             <span data-i18n="photoHeightLabel">Высота ячейки, мм</span>
             <input id="photoHeight" type="number" min="5" max="500" value="45" step="0.1" inputmode="decimal">
           </label>
+        </div>
           <label class="control compact-control full-width-control">
             <span data-i18n="photoFitLabel">Размещение в ячейке</span>
             <select id="photoFit">
               <option value="contain" data-i18n="photoFitContain">Вписать целиком</option>
-              <option value="cover" data-i18n="photoFitCover">Заполнить с обрезкой</option>
+              <option value="cover" data-i18n="photoFitCover" selected>Заполнить с обрезкой</option>
             </select>
           </label>
-        </div>
 
         <label class="toggle-control">
           <input id="cutMarks" type="checkbox">

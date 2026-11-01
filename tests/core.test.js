@@ -12,6 +12,33 @@ import { renderSheet } from "../src/renderer.js";
 const { buildSheetPlan, getCutMarkSegments, resolvePaper } = layout;
 const { setPngDpi } = dpiMetadata;
 
+test("instant photo presets keep card size, image size and frames in previews and exports", () => {
+  for (const [gridMode, width, height, imageWidth, imageHeight, inset] of [
+    ["mini", 54, 86, 54, 86, 0],
+    ["wide", 108, 86, 108, 86, 0],
+    ["miniFrame", 54, 86, 46, 62, 4],
+    ["wideFrame", 108, 86, 99, 62, 4.5]
+  ]) {
+    const plan = buildSheetPlan({ paper: { widthMm: 297, heightMm: 210 }, dpi: 254,
+      marginMm: 5, gapMm: 2, gridMode, photoCount: 1 });
+    assert.equal(plan.photoFit, "cover");
+    assert.equal(plan.cells[0].width, width * 10);
+    assert.equal(plan.cells[0].height, height * 10);
+    assert.deepEqual(plan.photoFrameMm, { left: inset, top: inset, width: imageWidth, height: imageHeight });
+    for (const renderedPlan of [plan, layout.fitSheetPlanToPixels(plan, 100_000)]) {
+      const rects = [];
+      const context = { fillRect() {}, save() {}, restore() {}, beginPath() {}, clip() {},
+        rect(...args) { rects.push(args); }, translate() {}, rotate() {}, scale() {}, drawImage() {} };
+      renderSheet({ getContext: () => context }, [{ source: { width: 400, height: 300 },
+        edit: { rotation: 90, flipX: true, flipY: false } }], renderedPlan, false);
+      const cell = renderedPlan.cells[0];
+      const scale = renderedPlan.scale;
+      assert.deepEqual(rects[0], [cell.x + inset * scale, cell.y + inset * scale, imageWidth * scale, imageHeight * scale]);
+      assert.equal(getCutMarkSegments([cell], 1)[2][0], cell.x + width * scale);
+    }
+  }
+});
+
 test("large sheets require an explicit render override", () => {
   const canvas = {
     width: 0,

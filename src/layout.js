@@ -8,6 +8,12 @@ const PAPER_SIZES = {
   a3: [297, 420]
 };
 const MIN_PHOTO_SIZE_MM = 5;
+const PHOTO_PRESETS = {
+  mini: [54, 86, 54, 86],
+  wide: [108, 86, 108, 86],
+  miniFrame: [54, 86, 46, 62],
+  wideFrame: [108, 86, 99, 62]
+};
 
 export function resolvePaper(paperId, orientation) {
   const dimensions = PAPER_SIZES[paperId];
@@ -70,9 +76,10 @@ export function buildSheetPlan({
   let grid;
   let fixedCellWidthMm = null;
   let fixedCellHeightMm = null;
-  if (gridMode === "fixed") {
-    fixedCellWidthMm = Number(photoWidthMm);
-    fixedCellHeightMm = Number(photoHeightMm);
+  const preset = Object.hasOwn(PHOTO_PRESETS, gridMode) ? PHOTO_PRESETS[gridMode] : null;
+  if (gridMode === "fixed" || preset) {
+    fixedCellWidthMm = preset ? preset[0] : Number(photoWidthMm);
+    fixedCellHeightMm = preset ? preset[1] : Number(photoHeightMm);
     if (
       !Number.isFinite(fixedCellWidthMm) || fixedCellWidthMm < MIN_PHOTO_SIZE_MM ||
       !Number.isFinite(fixedCellHeightMm) || fixedCellHeightMm < MIN_PHOTO_SIZE_MM
@@ -132,7 +139,8 @@ export function buildSheetPlan({
     scale,
     marginMm: margin,
     gapMm: gap,
-    photoFit: photoFit === "cover" ? "cover" : "contain",
+    photoFit: photoFit === "contain" ? "contain" : "cover",
+    photoFrameMm: preset ? { left: (preset[0] - preset[2]) / 2, top: (preset[0] - preset[2]) / 2, width: preset[2], height: preset[3] } : null,
     overflowCount: Math.max(0, photoCount - slotCount)
   };
 }

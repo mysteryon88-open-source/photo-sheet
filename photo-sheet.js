@@ -16,6 +16,10 @@
         gridAuto: "Automatic",
         gridFixed: "By cell size",
         gridCustom: "Custom",
+        presetMini: "Polaroid Mini · 54 × 86 mm",
+        presetWide: "Polaroid Wide · 108 × 86 mm",
+        presetMiniFrame: "Mini with frame · image 46 × 62 mm",
+        presetWideFrame: "Wide with frame · image 99 × 62 mm",
         columnsLabel: "Columns",
         rowsLabel: "Rows",
         photoWidthLabel: "Cell width, mm",
@@ -79,6 +83,10 @@
         gridAuto: "Автоматическая",
         gridFixed: "По размеру ячейки",
         gridCustom: "Своя",
+        presetMini: "Polaroid Mini · 54 × 86 мм",
+        presetWide: "Polaroid Wide · 108 × 86 мм",
+        presetMiniFrame: "Mini с рамкой · фото 46 × 62 мм",
+        presetWideFrame: "Wide с рамкой · фото 99 × 62 мм",
         columnsLabel: "Столбцы",
         rowsLabel: "Строки",
         photoWidthLabel: "Ширина ячейки, мм",
@@ -154,6 +162,12 @@
       a3: [297, 420]
     };
     const MIN_PHOTO_SIZE_MM = 5;
+    const PHOTO_PRESETS = {
+      mini: [54, 86, 54, 86],
+      wide: [108, 86, 108, 86],
+      miniFrame: [54, 86, 46, 62],
+      wideFrame: [108, 86, 99, 62]
+    };
 
     function resolvePaper(paperId, orientation) {
       const dimensions = PAPER_SIZES[paperId];
@@ -216,9 +230,10 @@
       let grid;
       let fixedCellWidthMm = null;
       let fixedCellHeightMm = null;
-      if (gridMode === "fixed") {
-        fixedCellWidthMm = Number(photoWidthMm);
-        fixedCellHeightMm = Number(photoHeightMm);
+      const preset = Object.hasOwn(PHOTO_PRESETS, gridMode) ? PHOTO_PRESETS[gridMode] : null;
+      if (gridMode === "fixed" || preset) {
+        fixedCellWidthMm = preset ? preset[0] : Number(photoWidthMm);
+        fixedCellHeightMm = preset ? preset[1] : Number(photoHeightMm);
         if (
           !Number.isFinite(fixedCellWidthMm) || fixedCellWidthMm < MIN_PHOTO_SIZE_MM ||
           !Number.isFinite(fixedCellHeightMm) || fixedCellHeightMm < MIN_PHOTO_SIZE_MM
@@ -278,7 +293,8 @@
         scale,
         marginMm: margin,
         gapMm: gap,
-        photoFit: photoFit === "cover" ? "cover" : "contain",
+        photoFit: photoFit === "contain" ? "contain" : "cover",
+        photoFrameMm: preset ? { left: (preset[0] - preset[2]) / 2, top: (preset[0] - preset[2]) / 2, width: preset[2], height: preset[3] } : null,
         overflowCount: Math.max(0, photoCount - slotCount)
       };
     }
@@ -742,7 +758,16 @@
       context.fillStyle = "#ffffff";
       context.fillRect(0, 0, canvas.width, canvas.height);
 
-      for (const cell of plan.cells) drawPhoto(context, photos[cell.photoIndex], cell, plan.photoFit);
+      for (const cell of plan.cells) {
+        const frame = plan.photoFrameMm;
+        const imageCell = frame ? {
+          x: cell.x + frame.left * plan.scale,
+          y: cell.y + frame.top * plan.scale,
+          width: frame.width * plan.scale,
+          height: frame.height * plan.scale
+        } : cell;
+        drawPhoto(context, photos[cell.photoIndex], imageCell, plan.photoFit);
+      }
       if (drawCutMarks) drawMarks(context, plan);
     }
 
@@ -1406,7 +1431,7 @@
         rows: Number(elements.rows.value),
         photoWidthMm: Number(elements.photoWidth.value),
         photoHeightMm: Number(elements.photoHeight.value),
-        photoFit: elements.gridMode.value === "fixed" ? elements.photoFit.value : "contain",
+        photoFit: elements.photoFit.value,
         photoCount: photos.length,
         allowOverflow: true
       });

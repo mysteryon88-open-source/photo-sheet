@@ -524,7 +524,7 @@ function readPlan() {
     rows: Number(elements.rows.value),
     photoWidthMm: Number(elements.photoWidth.value),
     photoHeightMm: Number(elements.photoHeight.value),
-    photoFit: elements.gridMode.value === "fixed" ? elements.photoFit.value : "contain",
+    photoFit: elements.photoFit.value,
     photoCount: photos.length,
     allowOverflow: true
   });
