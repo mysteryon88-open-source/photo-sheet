@@ -28,10 +28,8 @@
         photoFitContain: "Fit entire photo",
         photoFitCover: "Fill and crop",
         cropTitle: "Crop · photo {number}",
-        cropHorizontal: "Left — right",
-        cropVertical: "Up — down",
         cropReset: "Center",
-        cropHint: "Click a photo on the sheet to select it. Only the cropped axis can be shifted.",
+        cropHint: "Drag within a card to adjust the crop. Drop onto another photo to reorder. Shift + arrows: fine adjustment. Esc: cancel.",
         marginLabel: "Sheet margin",
         gapLabel: "Gap between photos",
         cutMarksLabel: "Add crop marks",
@@ -100,10 +98,8 @@
         photoFitContain: "Вписать целиком",
         photoFitCover: "Заполнить с обрезкой",
         cropTitle: "Кадрирование · фото {number}",
-        cropHorizontal: "Влево — вправо",
-        cropVertical: "Вверх — вниз",
         cropReset: "По центру",
-        cropHint: "Выберите фото щелчком на листе. Сдвиг доступен по обрезаемой стороне.",
+        cropHint: "Зажмите фото и двигайте внутри карточки — кадрирование. Отпустите над другой фотографией — перенос. Shift + стрелки — точный сдвиг, Esc — отмена.",
         marginLabel: "Поля листа",
         gapLabel: "Зазор между фото",
         cutMarksLabel: "Добавить метки реза",
@@ -769,19 +765,23 @@
       context.fillRect(0, 0, canvas.width, canvas.height);
 
       for (const cell of plan.cells) {
-        const frame = plan.photoFrameMm;
-        const imageCell = frame ? {
-          x: cell.x + frame.left * plan.scale,
-          y: cell.y + frame.top * plan.scale,
-          width: frame.width * plan.scale,
-          height: frame.height * plan.scale
-        } : cell;
+        const imageCell = getPhotoImageCell(cell, plan);
         drawPhoto(context, photos[cell.photoIndex], imageCell, plan.photoFit);
       }
       if (drawCutMarks) drawMarks(context, plan);
     }
 
-    function drawPhoto(context, photo, cell, photoFit) {
+    function getPhotoImageCell(cell, plan) {
+      const frame = plan.photoFrameMm;
+      return frame ? {
+        x: cell.x + frame.left * plan.scale,
+        y: cell.y + frame.top * plan.scale,
+        width: frame.width * plan.scale,
+        height: frame.height * plan.scale
+      } : cell;
+    }
+
+    function getPhotoGeometry(photo, cell, photoFit) {
       const image = photo.source;
       const sourceWidth = image.width || image.naturalWidth;
       const sourceHeight = image.height || image.naturalHeight;
@@ -793,21 +793,49 @@
       const drawHeight = sourceHeight * scale;
       const cropX = Number.isFinite(photo.edit.cropX) ? Math.max(-1, Math.min(1, photo.edit.cropX)) : 0;
       const cropY = Number.isFinite(photo.edit.cropY) ? Math.max(-1, Math.min(1, photo.edit.cropY)) : 0;
-      const offsetX = photoFit === "cover" ? cropX * Math.max(0, (rotated ? drawHeight : drawWidth) - cell.width) / 2 : 0;
-      const offsetY = photoFit === "cover" ? cropY * Math.max(0, (rotated ? drawWidth : drawHeight) - cell.height) / 2 : 0;
+      const overflowX = photoFit === "cover" ? Math.max(0, (rotated ? drawHeight : drawWidth) - cell.width) : 0;
+      const overflowY = photoFit === "cover" ? Math.max(0, (rotated ? drawWidth : drawHeight) - cell.height) : 0;
+      return { drawWidth, drawHeight, overflowX, overflowY,
+        centerX: cell.x + cell.width / 2 + cropX * overflowX / 2,
+        centerY: cell.y + cell.height / 2 + cropY * overflowY / 2 };
+    }
+
+    function renderCropPreview(canvas, photo, cell, width, height) {
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      context.save();
+      context.filter = "blur(4px)";
+      context.globalAlpha = 0.65;
+      drawPhoto(context, photo, cell, "cover", false);
+      context.restore();
+      context.clearRect(cell.x, cell.y, cell.width, cell.height);
+      context.fillStyle = "#ffffff";
+      context.fillRect(cell.x, cell.y, cell.width, cell.height);
+      drawPhoto(context, photo, cell, "cover");
+      context.strokeStyle = "#ffffff";
+      context.lineWidth = 3;
+      context.strokeRect(cell.x, cell.y, cell.width, cell.height);
+      context.strokeStyle = "#a45f44";
+      context.lineWidth = 1;
+      context.strokeRect(cell.x, cell.y, cell.width, cell.height);
+    }
+
+    function drawPhoto(context, photo, cell, photoFit, clip = true) {
+      const { drawWidth, drawHeight, centerX, centerY } = getPhotoGeometry(photo, cell, photoFit);
 
       context.save();
-      if (photoFit === "cover") {
+      if (photoFit === "cover" && clip) {
         context.beginPath();
         context.rect(cell.x, cell.y, cell.width, cell.height);
         context.clip();
       }
       context.imageSmoothingEnabled = true;
       context.imageSmoothingQuality = "high";
-      context.translate(cell.x + cell.width / 2 + offsetX, cell.y + cell.height / 2 + offsetY);
+      context.translate(centerX, centerY);
       context.rotate(photo.edit.rotation * Math.PI / 180);
       context.scale(photo.edit.flipX ? -1 : 1, photo.edit.flipY ? -1 : 1);
-      context.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+      context.drawImage(photo.source, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
       context.restore();
     }
 
@@ -827,7 +855,7 @@
       context.restore();
     }
 
-    return { renderSheet };
+    return { renderSheet, getPhotoImageCell, getPhotoGeometry, renderCropPreview };
   })();
 
   modules.export = (() => {
@@ -923,7 +951,7 @@
     const { translate } = modules.i18n;
     const { buildSheetPlan, fitSheetPlanToPixels, getPhotoIndexFromViewportPoint, resolvePaper } = modules.layout;
     const { createPhoto, disposePhotos, editPhoto, getImageFilePixelCount, getTotalPhotoPixels, loadPhotosWithLimit, snapshotPhotosForRender } = modules.photos;
-    const { renderSheet } = modules.renderer;
+    const { getPhotoGeometry, getPhotoImageCell, renderCropPreview, renderSheet } = modules.renderer;
 
     const RENDER_DELAY_MS = 90;
     const PREVIEW_MAX_PIXELS = 8_000_000;
@@ -971,8 +999,7 @@
       photoFit: byId("photoFit"),
       cropControls: byId("cropControls"),
       cropTitle: byId("cropTitle"),
-      cropX: byId("cropX"),
-      cropY: byId("cropY"),
+      cropPreview: byId("cropPreview"),
       cropReset: byId("cropReset"),
       margin: byId("margin"),
       marginValue: byId("marginValue"),
@@ -996,6 +1023,7 @@
     let statusState = { key: null, values: {} };
     let outputBusy = false;
     let overflowCapacity = 0;
+    let cancelPhotoDrag = () => {};
 
     bindEvents();
     setTheme(localStorage.getItem("theme") === "dark" ? "dark" : "light");
@@ -1028,7 +1056,7 @@
             elements.rows.value = String(lastPlan?.rows ?? Number(elements.rows.value));
           }
           syncConditionalControls();
-          syncCropControls();
+          syncPhotoControls();
           scheduleRender();
         });
       }
@@ -1036,15 +1064,9 @@
         input.addEventListener("input", scheduleRender);
       }
       elements.cutMarks.addEventListener("change", scheduleRender);
-      for (const axis of ["cropX", "cropY"]) {
-        elements[axis].addEventListener("input", () => {
-          if (outputBusy || !photos[selectedPhotoIndex]) return;
-          photos[selectedPhotoIndex].edit[axis] = Number(elements[axis].value) / 100;
-          scheduleRender();
-        });
-      }
       elements.cropReset.addEventListener("click", () => {
         if (outputBusy || !photos[selectedPhotoIndex]) return;
+        cancelPhotoDrag();
         photos[selectedPhotoIndex].edit.cropX = 0;
         photos[selectedPhotoIndex].edit.cropY = 0;
         syncCropControls();
@@ -1063,6 +1085,17 @@
       });
       elements.previewStage.addEventListener("contextmenu", openPhotoMenu);
       elements.previewStage.addEventListener("keydown", event => {
+        if (outputBusy) return;
+        if (event.shiftKey && event.key.startsWith("Arrow") && photos[selectedPhotoIndex] && elements.photoFit.value === "cover") {
+          event.preventDefault();
+          cancelPhotoDrag();
+          const axis = event.key === "ArrowLeft" || event.key === "ArrowRight" ? "cropX" : "cropY";
+          const delta = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -0.05 : 0.05;
+          const edit = photos[selectedPhotoIndex].edit;
+          edit[axis] = Math.max(-1, Math.min(1, (edit[axis] ?? 0) + delta));
+          scheduleRender();
+          return;
+        }
         if (photos.length > 0 && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
           event.preventDefault();
           const delta = event.key === "ArrowLeft" ? -1 : 1;
@@ -1135,6 +1168,7 @@
     }
 
     async function loadPhotos(files, mode) {
+      cancelPhotoDrag();
       if (outputBusy) return;
       const version = ++loadVersion;
       const accepted = files.filter(isSupportedImage);
@@ -1190,11 +1224,12 @@
     }
 
     function syncPhotoControls() {
+      cancelPhotoDrag();
       elements.addPhotos.hidden = photos.length === 0;
       elements.replacePhotos.textContent = t(photos.length === 0 ? "choosePhotos" : "replacePhotos");
       selectedPhotoIndex = Math.min(selectedPhotoIndex, Math.max(0, photos.length - 1));
       elements.sidebar.classList.toggle("has-photos", photos.length > 0);
-      elements.canvas.classList.toggle("reorderable", photos.length > 1);
+      elements.canvas.classList.toggle("reorderable", photos.length > 1 || (photos.length > 0 && elements.photoFit.value === "cover"));
       const labelKey = photos.length > 1 ? "canvasReorderLabel" : photos.length === 1 ? "canvasPhotoLabel" : "previewLabel";
       elements.previewStage.setAttribute("aria-label", t(labelKey, {
         number: selectedPhotoIndex + 1,
@@ -1208,16 +1243,6 @@
       elements.cropControls.hidden = !photo || elements.photoFit.value !== "cover";
       if (!photo) return;
       elements.cropTitle.textContent = t("cropTitle", { number: selectedPhotoIndex + 1 });
-      elements.cropX.value = String((photo.edit.cropX ?? 0) * 100);
-      elements.cropY.value = String((photo.edit.cropY ?? 0) * 100);
-      const cell = lastPreviewPlan?.cells.find(item => item.photoIndex === selectedPhotoIndex);
-      const viewport = lastPreviewPlan?.photoFrameMm ?? cell;
-      const width = photo.source.width || photo.source.naturalWidth;
-      const height = photo.source.height || photo.source.naturalHeight;
-      const aspect = photo.edit.rotation % 180 === 0 ? width / height : height / width;
-      const cellAspect = viewport ? viewport.width / viewport.height : aspect;
-      elements.cropX.disabled = outputBusy || aspect <= cellAspect + 1e-9;
-      elements.cropY.disabled = outputBusy || aspect >= cellAspect - 1e-9;
       elements.cropReset.disabled = outputBusy;
     }
 
@@ -1234,6 +1259,10 @@
     function getPhotoCellViewportRect(photoIndex) {
       const cell = lastPreviewPlan?.cells.find(item => item.photoIndex === photoIndex);
       if (!cell || elements.canvas.hidden) return null;
+      return getCellViewportRect(cell);
+    }
+
+    function getCellViewportRect(cell) {
       const bounds = elements.canvas.getBoundingClientRect();
       const scaleX = elements.canvas.clientWidth / elements.canvas.width;
       const scaleY = elements.canvas.clientHeight / elements.canvas.height;
@@ -1264,50 +1293,117 @@
     function bindCanvasReorder() {
       let drag = null;
 
+      function hitCell(event) {
+        if (elements.canvas.hidden) return null;
+        return lastPreviewPlan?.cells.find(cell => {
+          const rect = getCellViewportRect(cell);
+          return event.clientX >= rect.left && event.clientX <= rect.left + rect.width &&
+            event.clientY >= rect.top && event.clientY <= rect.top + rect.height;
+        });
+      }
+
+      cancelPhotoDrag = () => {
+        const previous = drag;
+        drag = null;
+        elements.cropPreview.hidden = true;
+        elements.canvas.classList.remove("reordering");
+        hideReorderTarget();
+        if (previous && elements.canvas.hasPointerCapture(previous.pointerId)) {
+          elements.canvas.releasePointerCapture(previous.pointerId);
+        }
+      };
+
+      function showCrop() {
+        elements.cropPreview.hidden = false;
+        renderCropPreview(elements.cropPreview, drag.previewPhoto, drag.imageCell, window.innerWidth, window.innerHeight);
+      }
+
       elements.canvas.addEventListener("pointerdown", event => {
-        if (outputBusy || event.button !== 0 || photos.length === 0) return;
-        const photoIndex = getCanvasPhotoIndex(event);
-        if (photoIndex < 0) return;
+        if (drag || outputBusy || !event.isPrimary || event.button !== 0 || photos.length === 0) return;
+        const cell = hitCell(event);
+        if (!cell) return;
+        const photoIndex = cell.photoIndex;
         selectedPhotoIndex = photoIndex;
         syncPhotoControls();
         elements.previewStage.focus({ preventScroll: true });
-        if (photos.length < 2) return;
+        const canCrop = lastPreviewPlan.photoFit === "cover";
+        if (photos.length < 2 && !canCrop) return;
+        const photo = photos[photoIndex];
+        const rect = getCellViewportRect(getPhotoImageCell(cell, lastPreviewPlan));
+        const imageCell = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
         drag = {
           pointerId: event.pointerId,
           fromIndex: photoIndex,
-          targetIndex: photoIndex,
+          cell,
+          targetCell: cell,
+          photo,
+          previewPhoto: { source: photo.source, edit: { ...photo.edit } },
+          imageCell,
+          geometry: getPhotoGeometry(photo, imageCell, "cover"),
+          canCrop,
           startX: event.clientX,
           startY: event.clientY,
           active: false
         };
+        elements.canvas.setPointerCapture(event.pointerId);
+        if (canCrop) showCrop();
+        event.preventDefault();
       });
 
-      window.addEventListener("pointermove", event => {
+      function updateDrag(event) {
         if (drag?.pointerId !== event.pointerId) return;
         if (!drag.active && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6) return;
         drag.active = true;
         elements.canvas.classList.add("reordering");
         closePhotoMenu();
-        drag.targetIndex = getCanvasPhotoIndex(event);
-        showReorderTarget(drag.targetIndex);
+        drag.targetCell = hitCell(event);
+        hideReorderTarget();
+        elements.cropPreview.hidden = true;
+        if (drag.targetCell === drag.cell && drag.canCrop) {
+          for (const [axis, overflow, delta] of [
+            ["cropX", drag.geometry.overflowX, event.clientX - drag.startX],
+            ["cropY", drag.geometry.overflowY, event.clientY - drag.startY]
+          ]) {
+            drag.previewPhoto.edit[axis] = overflow > 1e-9
+              ? Math.max(-1, Math.min(1, (drag.photo.edit[axis] ?? 0) + delta * 2 / overflow)) : 0;
+          }
+          showCrop();
+        } else if (drag.targetCell && drag.targetCell.photoIndex !== drag.fromIndex) {
+          showReorderTarget(drag.targetCell.photoIndex);
+        }
         event.preventDefault();
-      });
+      }
+      window.addEventListener("pointermove", updateDrag);
 
       window.addEventListener("pointerup", event => finishPhotoDrag(event, true));
       window.addEventListener("pointercancel", event => finishPhotoDrag(event, false));
+      elements.canvas.addEventListener("lostpointercapture", event => finishPhotoDrag(event, false));
+      window.addEventListener("blur", cancelPhotoDrag);
+      window.addEventListener("resize", cancelPhotoDrag);
+      window.addEventListener("scroll", cancelPhotoDrag, true);
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape") cancelPhotoDrag();
+      });
 
       function finishPhotoDrag(event, shouldMove) {
         if (drag?.pointerId !== event.pointerId) return;
-        const { active, fromIndex, targetIndex } = drag;
-        drag = null;
-        elements.canvas.classList.remove("reordering");
-        hideReorderTarget();
-        if (active && shouldMove && targetIndex >= 0) movePhoto(fromIndex, targetIndex);
+        if (shouldMove) updateDrag(event);
+        const { active, fromIndex, targetCell, cell, photo, previewPhoto, canCrop } = drag;
+        cancelPhotoDrag();
+        if (!active || !shouldMove || outputBusy || photos[fromIndex] !== photo) return;
+        if (targetCell === cell && canCrop) {
+          photo.edit.cropX = previewPhoto.edit.cropX;
+          photo.edit.cropY = previewPhoto.edit.cropY;
+          scheduleRender();
+        } else if (targetCell && targetCell.photoIndex !== fromIndex) {
+          movePhoto(fromIndex, targetCell.photoIndex);
+        }
       }
     }
 
     function applySelectedPhotoAction(action) {
       if (outputBusy) return;
+      cancelPhotoDrag();
       if (action === "addPhotos") return openFilePicker("add");
       if (action === "clearCanvas") return clearPhotos();
       if (action === "removePhoto") return removeSelectedPhoto();
@@ -1318,6 +1414,7 @@
     }
 
     function openPhotoMenu(event) {
+      cancelPhotoDrag();
       if (outputBusy) return;
       const photoIndex = event.type === "keydown" ? (photos.length > 0 ? selectedPhotoIndex : -1) : getCanvasPhotoIndex(event);
       event.preventDefault();
@@ -1371,6 +1468,7 @@
     }
 
     function clearPhotos() {
+      cancelPhotoDrag();
       if (outputBusy) return;
       loadVersion++;
       clearTimeout(renderTimer);
@@ -1387,6 +1485,7 @@
     }
 
     function removeSelectedPhoto() {
+      cancelPhotoDrag();
       if (outputBusy) return;
       const removed = photos[selectedPhotoIndex];
       if (!removed) return;
@@ -1408,6 +1507,7 @@
     }
 
     function movePhoto(fromIndex, toIndex) {
+      cancelPhotoDrag();
       if (outputBusy) return;
       if (fromIndex === toIndex || toIndex < 0 || toIndex >= photos.length) return;
       const selectedPhoto = photos[selectedPhotoIndex];
@@ -1427,6 +1527,7 @@
     }
 
     function scheduleRender() {
+      cancelPhotoDrag();
       clearTimeout(renderTimer);
       closePhotoMenu();
       if (photos.length === 0) return;
@@ -1437,6 +1538,7 @@
     }
 
     async function renderSelection() {
+      cancelPhotoDrag();
       if (photos.length === 0) return;
       const version = ++renderVersion;
       let plan;
@@ -1445,6 +1547,7 @@
 
       try {
         await new Promise(resolve => requestAnimationFrame(resolve));
+        cancelPhotoDrag();
         plan = readPlan();
         const previewPlan = fitSheetPlanToPixels(plan, PREVIEW_MAX_PIXELS);
         renderSheet(elements.canvas, photos, previewPlan, elements.cutMarks.checked);
@@ -1573,6 +1676,7 @@
     }
 
     function setOutputBusy(busy) {
+      cancelPhotoDrag();
       outputBusy = busy;
       if (busy) {
         closePhotoMenu();
@@ -1582,7 +1686,7 @@
         elements.paper, elements.orientation, elements.dpi, elements.gridMode,
         elements.columns, elements.rows, elements.photoWidth, elements.photoHeight,
         elements.photoFit, elements.margin, elements.marginValue, elements.gap,
-        elements.cropX, elements.cropY, elements.cropReset,
+        elements.cropReset,
         elements.gapValue, elements.cutMarks, elements.replacePhotos, elements.addPhotos,
         elements.exportFormat, elements.trimPhotos
       ];

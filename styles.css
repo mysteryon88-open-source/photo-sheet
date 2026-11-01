@@ -160,6 +160,8 @@ input[type="range"] { width: 100%; min-width: 0; accent-color: var(--accent); }
 #preview.reordering { cursor: grabbing; }
 .canvas-reorder-target { position: fixed; z-index: 5; box-sizing: border-box; border: 3px solid var(--accent); border-radius: 3px; background: color-mix(in srgb, var(--accent) 12%, transparent); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--panel-strong) 65%, transparent); pointer-events: none; }
 .canvas-reorder-target[hidden] { display: none; }
+.crop-preview { position: fixed; inset: 0; z-index: 4; pointer-events: none; }
+.crop-preview[hidden] { display: none; }
 .empty-preview { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; width: auto; min-width: 0; max-width: calc(100% - 100px); height: calc(100% - 100px); aspect-ratio: 1.35; padding: 16px; border: 10px solid var(--panel-strong); border-radius: 5px; background: #f7ecdd; box-shadow: 0 10px 22px var(--shadow); }
 .empty-preview[hidden] { display: none; }
 .empty-preview i { position: relative; display: block; overflow: hidden; background: linear-gradient(145deg, #ebddcc 0 52%, #d9c1aa 52% 100%); }

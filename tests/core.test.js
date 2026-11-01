@@ -7,10 +7,47 @@ import { buildPdf } from "../src/pdf.js";
 import * as dpiMetadata from "../src/png-dpi.js";
 import * as exportUtils from "../src/export.js";
 import { translate } from "../src/i18n.js";
-import { renderSheet } from "../src/renderer.js";
+import { getPhotoGeometry, getPhotoImageCell, renderCropPreview, renderSheet } from "../src/renderer.js";
 
 const { buildSheetPlan, getCutMarkSegments, resolvePaper } = layout;
 const { setPngDpi } = dpiMetadata;
+
+test("drag crop geometry uses inner frame and screen axes after rotation", () => {
+  const cell = getPhotoImageCell({ x: 100, y: 200, width: 540, height: 860 }, {
+    scale: 10, photoFrameMm: { left: 4, top: 4, width: 46, height: 62 }
+  });
+  assert.deepEqual(cell, { x: 140, y: 240, width: 460, height: 620 });
+  const photo = { source: { width: 400, height: 100 }, edit: { rotation: 0, cropX: 1 } };
+  const horizontal = getPhotoGeometry(photo, { x: 10, y: 20, width: 100, height: 100 }, "cover");
+  assert.equal(horizontal.overflowX, 300);
+  assert.equal(horizontal.overflowY, 0);
+  assert.equal(horizontal.centerX, 210);
+  photo.edit = { rotation: 90, cropY: -1 };
+  const vertical = getPhotoGeometry(photo, { x: 10, y: 20, width: 100, height: 100 }, "cover");
+  assert.equal(vertical.overflowX, 0);
+  assert.equal(vertical.overflowY, 300);
+  assert.equal(vertical.centerY, -80);
+});
+
+test("crop overlay draws blurred full image then sharp clipped crop", () => {
+  const calls = [];
+  const stack = [];
+  const context = {
+    filter: "none", globalAlpha: 1, clipped: false,
+    save() { stack.push([this.filter, this.globalAlpha, this.clipped]); },
+    restore() { [this.filter, this.globalAlpha, this.clipped] = stack.pop(); },
+    beginPath() {}, rect() {}, translate() {}, rotate() {}, scale() {},
+    clip() { this.clipped = true; },
+    clearRect(...args) { calls.push(["clear", ...args]); },
+    fillRect() {}, strokeRect() {},
+    drawImage() { calls.push(["draw", this.filter, this.globalAlpha, this.clipped]); }
+  };
+  const canvas = { getContext: () => context };
+  renderCropPreview(canvas, { source: { width: 400, height: 100 }, edit: { rotation: 0, cropX: 0.5 } },
+    { x: 30, y: 40, width: 100, height: 100 }, 800, 600);
+  assert.deepEqual(calls, [["draw", "blur(4px)", 0.65, false], ["clear", 30, 40, 100, 100], ["draw", "none", 1, true]]);
+  assert.deepEqual([canvas.width, canvas.height], [800, 600]);
+});
 
 test("instant photo presets keep card size, image size and frames in previews and exports", () => {
   for (const [gridMode, width, height, imageWidth, imageHeight, inset] of [

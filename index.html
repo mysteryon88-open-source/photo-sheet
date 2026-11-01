@@ -127,16 +127,8 @@
 
         <fieldset id="cropControls" class="crop-controls" hidden>
           <legend id="cropTitle"></legend>
-          <label class="control">
-            <span data-i18n="cropHorizontal">Влево — вправо</span>
-            <input id="cropX" type="range" min="-100" max="100" value="0" step="1" aria-describedby="cropHint">
-          </label>
-          <label class="control">
-            <span data-i18n="cropVertical">Вверх — вниз</span>
-            <input id="cropY" type="range" min="-100" max="100" value="0" step="1" aria-describedby="cropHint">
-          </label>
           <button id="cropReset" type="button" data-i18n="cropReset">По центру</button>
-          <small id="cropHint" data-i18n="cropHint">Выберите фото щелчком на листе. Сдвиг доступен по обрезаемой стороне.</small>
+          <small id="cropHint" data-i18n="cropHint">Зажмите фото и двигайте внутри карточки — кадрирование. Отпустите над другой фотографией — перенос. Shift + стрелки — точный сдвиг, Esc — отмена.</small>
         </fieldset>
 
         <label class="toggle-control">
@@ -179,7 +171,7 @@
       </div>
     </aside>
 
-    <section class="preview-stage" data-orientation="landscape" aria-label="Предпросмотр листа" aria-haspopup="menu" aria-keyshortcuts="ArrowLeft ArrowRight Alt+ArrowLeft Alt+ArrowRight Shift+F10" tabindex="0">
+    <section class="preview-stage" data-orientation="landscape" aria-label="Предпросмотр листа" aria-describedby="cropHint" aria-haspopup="menu" aria-keyshortcuts="ArrowLeft ArrowRight Alt+ArrowLeft Alt+ArrowRight Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+F10 Escape" tabindex="0">
       <span class="stage-sparkle stage-sparkle--left" aria-hidden="true">✦</span>
       <span class="stage-sparkle stage-sparkle--bottom" aria-hidden="true">✧</span>
       <span class="stage-sparkle stage-sparkle--top-left" aria-hidden="true">✧</span>
@@ -192,11 +184,12 @@
   </div>
 
   <div id="photoMenu" class="photo-menu" role="menu" hidden></div>
+  <canvas id="cropPreview" class="crop-preview" aria-hidden="true" hidden></canvas>
 
 </main>
 
 <div id="printHost" aria-hidden="true"><img id="printImage" alt=""></div>
 <style id="pageStyle"></style>
-<script defer src="photo-sheet.js?v=20261101-labels"></script>
+<script defer src="photo-sheet.js?v=20261101-drag-crop"></script>
 </body>
 </html>
