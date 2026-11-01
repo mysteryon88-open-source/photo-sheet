@@ -12,6 +12,24 @@ import { getPhotoGeometry, getPhotoImageCell, renderCropPreview, renderSheet } f
 const { buildSheetPlan, getCutMarkSegments, resolvePaper } = layout;
 const { setPngDpi } = dpiMetadata;
 
+test("photo zoom is bounded, rotation aware, and ignored by contain", () => {
+  const cell = { x: 10, y: 20, width: 100, height: 100 };
+  for (const rotation of [0, 90, 180, 270]) {
+    const photo = { source: { width: 400, height: 100 }, edit: { rotation, cropX: 1, cropY: -1 } };
+    for (const [zoom, expected] of [[undefined, 1], [NaN, 1], [Infinity, 1], [-1, 1], [0.5, 1], [2, 2], [20, 8]]) {
+      photo.edit.zoom = zoom;
+      const geometry = getPhotoGeometry(photo, cell, "cover");
+      assert.equal(geometry.drawWidth, 400 * expected);
+      assert.equal(geometry.drawHeight, 100 * expected);
+      const width = rotation % 180 ? geometry.drawHeight : geometry.drawWidth;
+      const height = rotation % 180 ? geometry.drawWidth : geometry.drawHeight;
+      assert.equal(geometry.centerX - width / 2, cell.x);
+      assert.equal(geometry.centerY + height / 2, cell.y + cell.height);
+      assert.equal(getPhotoGeometry(photo, cell, "contain").drawWidth, 100);
+    }
+  }
+});
+
 test("drag crop geometry uses inner frame and screen axes after rotation", () => {
   const cell = getPhotoImageCell({ x: 100, y: 200, width: 540, height: 860 }, {
     scale: 10, photoFrameMm: { left: 4, top: 4, width: 46, height: 62 }
@@ -492,15 +510,16 @@ test("photo pixel count is read from supported file headers without decoding", a
 
 test("photo render snapshots isolate later edit changes", () => {
   const source = { id: "bitmap" };
-  const photos = [{ source, edit: { rotation: 0, flipX: false, flipY: false, cropX: -0.5, cropY: 0.75 } }];
+  const photos = [{ source, edit: { rotation: 0, flipX: false, flipY: false, cropX: -0.5, cropY: 0.75, zoom: 2 } }];
 
   const snapshot = photoUtils.snapshotPhotosForRender?.(photos);
   photos[0].edit.rotation = 90;
   photos[0].edit.cropX = 1;
+  photos[0].edit.zoom = 4;
 
   assert.ok(snapshot, "snapshotPhotosForRender must be exported");
   assert.equal(snapshot[0].source, source);
-  assert.deepEqual(snapshot[0].edit, { rotation: 0, flipX: false, flipY: false, cropX: -0.5, cropY: 0.75 });
+  assert.deepEqual(snapshot[0].edit, { rotation: 0, flipX: false, flipY: false, cropX: -0.5, cropY: 0.75, zoom: 2 });
 });
 
 test("crop shifts stay in screen axes, clamp at image edges, and preserve framed preview geometry", () => {

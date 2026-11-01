@@ -120,6 +120,7 @@ function bindEvents() {
     cancelPhotoDrag();
     photos[selectedPhotoIndex].edit.cropX = 0;
     photos[selectedPhotoIndex].edit.cropY = 0;
+    photos[selectedPhotoIndex].edit.zoom = 1;
     syncCropControls();
     scheduleRender();
   });
@@ -344,6 +345,45 @@ function hideReorderTarget() {
 function bindCanvasReorder() {
   let drag = null;
 
+  function changeZoom(photo, factor) {
+    photo.edit.zoom = Math.max(1, Math.min(8, (photo.edit.zoom ?? 1) * factor));
+  }
+
+  elements.previewStage.addEventListener("keydown", event => {
+    if (outputBusy || event.ctrlKey || event.metaKey || elements.photoFit.value !== "cover" || !photos[selectedPhotoIndex]) return;
+    if (!["+", "=", "-"].includes(event.key)) return;
+    event.preventDefault();
+    cancelPhotoDrag();
+    changeZoom(photos[selectedPhotoIndex], event.key === "-" ? 1 / 1.1 : 1.1);
+    scheduleRender();
+  });
+
+  window.addEventListener("wheel", event => {
+    if (outputBusy || event.ctrlKey || event.metaKey || elements.photoFit.value !== "cover" || !event.deltaY) return;
+    const cell = hitCell(event);
+    if (!drag && !cell) return;
+    event.preventDefault();
+    const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1);
+    const factor = Math.exp(Math.max(-0.4, Math.min(0.4, -delta * 0.002)));
+    if (drag) {
+      if (!drag.canCrop || (cell && cell.photoIndex !== drag.fromIndex)) return;
+      changeZoom(drag.previewPhoto, factor);
+      drag.startEdit = { ...drag.previewPhoto.edit };
+      drag.startX = event.clientX;
+      drag.startY = event.clientY;
+      drag.geometry = getPhotoGeometry(drag.previewPhoto, drag.imageCell, "cover");
+      drag.active = true;
+      drag.targetCell = cell;
+      hideReorderTarget();
+      showCrop();
+    } else {
+      selectedPhotoIndex = cell.photoIndex;
+      changeZoom(photos[selectedPhotoIndex], factor);
+      syncPhotoControls();
+      scheduleRender({ keepPreviewPlan: true });
+    }
+  }, { passive: false });
+
   function hitCell(event) {
     if (elements.canvas.hidden) return null;
     return lastPreviewPlan?.cells.find(cell => {
@@ -362,6 +402,7 @@ function bindCanvasReorder() {
     if (previous && elements.canvas.hasPointerCapture(previous.pointerId)) {
       elements.canvas.releasePointerCapture(previous.pointerId);
     }
+    if (previous?.needsRender) scheduleRender();
   };
 
   function showCrop() {
@@ -382,15 +423,20 @@ function bindCanvasReorder() {
     const photo = photos[photoIndex];
     const rect = getCellViewportRect(getPhotoImageCell(cell, lastPreviewPlan));
     const imageCell = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+    clearTimeout(renderTimer);
+    renderTimer = 0;
+    renderVersion++;
     drag = {
       pointerId: event.pointerId,
       fromIndex: photoIndex,
       targetCell: cell,
       photo,
       previewPhoto: { source: photo.source, edit: { ...photo.edit } },
+      startEdit: { ...photo.edit },
       imageCell,
       geometry: getPhotoGeometry(photo, imageCell, "cover"),
       canCrop,
+      needsRender: !lastPlan,
       startX: event.clientX,
       startY: event.clientY,
       active: false
@@ -415,7 +461,7 @@ function bindCanvasReorder() {
         ["cropY", drag.geometry.overflowY, event.clientY - drag.startY]
       ]) {
         drag.previewPhoto.edit[axis] = overflow > 1e-9
-          ? Math.max(-1, Math.min(1, (drag.photo.edit[axis] ?? 0) + delta * 2 / overflow)) : 0;
+          ? Math.max(-1, Math.min(1, (drag.startEdit[axis] ?? 0) + delta * 2 / overflow)) : 0;
       }
       showCrop();
     } else if (drag.targetCell && drag.targetCell.photoIndex !== drag.fromIndex) {
@@ -444,6 +490,7 @@ function bindCanvasReorder() {
     if ((!targetCell || targetCell.photoIndex === fromIndex) && canCrop) {
       photo.edit.cropX = previewPhoto.edit.cropX;
       photo.edit.cropY = previewPhoto.edit.cropY;
+      photo.edit.zoom = previewPhoto.edit.zoom;
       scheduleRender();
     } else if (targetCell && targetCell.photoIndex !== fromIndex) {
       movePhoto(fromIndex, targetCell.photoIndex);
@@ -576,27 +623,31 @@ function syncConditionalControls() {
   elements.previewStage.dataset.orientation = elements.orientation.value;
 }
 
-function scheduleRender() {
+function scheduleRender({ keepPreviewPlan = false } = {}) {
   cancelPhotoDrag();
   clearTimeout(renderTimer);
   closePhotoMenu();
   if (photos.length === 0) return;
   renderVersion++;
-  disableExports();
+  disableExports(keepPreviewPlan);
   showStatus("processing");
-  renderTimer = setTimeout(renderSelection, RENDER_DELAY_MS);
+  renderTimer = setTimeout(() => {
+    renderTimer = 0;
+    renderSelection(keepPreviewPlan);
+  }, RENDER_DELAY_MS);
 }
 
-async function renderSelection() {
+async function renderSelection(keepPreviewPlan = false) {
   cancelPhotoDrag();
   if (photos.length === 0) return;
   const version = ++renderVersion;
   let plan;
-  disableExports();
+  disableExports(keepPreviewPlan);
   showStatus("processing");
 
   try {
     await new Promise(resolve => requestAnimationFrame(resolve));
+    if (version !== renderVersion) return;
     cancelPhotoDrag();
     plan = readPlan();
     const previewPlan = fitSheetPlanToPixels(plan, PREVIEW_MAX_PIXELS);
@@ -718,9 +769,9 @@ function showExportFailure(plan) {
   showStatus(failure.key, failure.values);
 }
 
-function disableExports() {
+function disableExports(keepPreviewPlan = false) {
   lastPlan = null;
-  lastPreviewPlan = null;
+  if (!keepPreviewPlan) lastPreviewPlan = null;
   elements.saveFile.disabled = true;
   elements.print.disabled = true;
 }

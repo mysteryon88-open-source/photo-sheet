@@ -35,7 +35,8 @@ export function getPhotoGeometry(photo, cell, photoFit) {
   const rotated = photo.edit.rotation % 180 !== 0;
   const fittedWidth = rotated ? sourceHeight : sourceWidth;
   const fittedHeight = rotated ? sourceWidth : sourceHeight;
-  const scale = (photoFit === "cover" ? Math.max : Math.min)(cell.width / fittedWidth, cell.height / fittedHeight);
+  const zoom = photoFit === "cover" && Number.isFinite(photo.edit.zoom) ? Math.max(1, Math.min(8, photo.edit.zoom)) : 1;
+  const scale = (photoFit === "cover" ? Math.max : Math.min)(cell.width / fittedWidth, cell.height / fittedHeight) * zoom;
   const drawWidth = sourceWidth * scale;
   const drawHeight = sourceHeight * scale;
   const cropX = Number.isFinite(photo.edit.cropX) ? Math.max(-1, Math.min(1, photo.edit.cropX)) : 0;

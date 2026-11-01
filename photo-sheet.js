@@ -28,8 +28,8 @@
         photoFitContain: "Fit entire photo",
         photoFitCover: "Fill and crop",
         cropTitle: "Crop · photo {number}",
-        cropReset: "Center",
-        cropHint: "Drag to adjust the crop, even beyond the card or sheet. Drop onto another photo to reorder. Shift + arrows: fine adjustment. Esc: cancel.",
+        cropReset: "Reset crop",
+        cropHint: "Drag to adjust the crop, even beyond the card or sheet. Drop onto another photo to reorder. Wheel or +/−: zoom. Shift + arrows: move. Esc: cancel.",
         marginLabel: "Sheet margin",
         gapLabel: "Gap between photos",
         cutMarksLabel: "Add crop marks",
@@ -98,8 +98,8 @@
         photoFitContain: "Вписать целиком",
         photoFitCover: "Заполнить с обрезкой",
         cropTitle: "Кадрирование · фото {number}",
-        cropReset: "По центру",
-        cropHint: "Зажмите фото и двигайте — можно выходить за края карточки и холста. Отпустите над другой фотографией — перенос. Shift + стрелки — точный сдвиг, Esc — отмена.",
+        cropReset: "Сбросить кадр",
+        cropHint: "Зажмите фото и двигайте — можно выходить за края карточки и холста. Отпустите над другой фотографией — перенос. Колёсико или +/− — масштаб. Shift + стрелки — сдвиг, Esc — отмена.",
         marginLabel: "Поля листа",
         gapLabel: "Зазор между фото",
         cutMarksLabel: "Добавить метки реза",
@@ -464,7 +464,7 @@
     async function createPhoto(file) {
       return {
         source: await loadOrientedImage(file),
-        edit: { rotation: 0, flipX: false, flipY: false, cropX: 0, cropY: 0 }
+        edit: { rotation: 0, flipX: false, flipY: false, cropX: 0, cropY: 0, zoom: 1 }
       };
     }
 
@@ -788,7 +788,8 @@
       const rotated = photo.edit.rotation % 180 !== 0;
       const fittedWidth = rotated ? sourceHeight : sourceWidth;
       const fittedHeight = rotated ? sourceWidth : sourceHeight;
-      const scale = (photoFit === "cover" ? Math.max : Math.min)(cell.width / fittedWidth, cell.height / fittedHeight);
+      const zoom = photoFit === "cover" && Number.isFinite(photo.edit.zoom) ? Math.max(1, Math.min(8, photo.edit.zoom)) : 1;
+      const scale = (photoFit === "cover" ? Math.max : Math.min)(cell.width / fittedWidth, cell.height / fittedHeight) * zoom;
       const drawWidth = sourceWidth * scale;
       const drawHeight = sourceHeight * scale;
       const cropX = Number.isFinite(photo.edit.cropX) ? Math.max(-1, Math.min(1, photo.edit.cropX)) : 0;
@@ -1069,6 +1070,7 @@
         cancelPhotoDrag();
         photos[selectedPhotoIndex].edit.cropX = 0;
         photos[selectedPhotoIndex].edit.cropY = 0;
+        photos[selectedPhotoIndex].edit.zoom = 1;
         syncCropControls();
         scheduleRender();
       });
@@ -1293,6 +1295,45 @@
     function bindCanvasReorder() {
       let drag = null;
 
+      function changeZoom(photo, factor) {
+        photo.edit.zoom = Math.max(1, Math.min(8, (photo.edit.zoom ?? 1) * factor));
+      }
+
+      elements.previewStage.addEventListener("keydown", event => {
+        if (outputBusy || event.ctrlKey || event.metaKey || elements.photoFit.value !== "cover" || !photos[selectedPhotoIndex]) return;
+        if (!["+", "=", "-"].includes(event.key)) return;
+        event.preventDefault();
+        cancelPhotoDrag();
+        changeZoom(photos[selectedPhotoIndex], event.key === "-" ? 1 / 1.1 : 1.1);
+        scheduleRender();
+      });
+
+      window.addEventListener("wheel", event => {
+        if (outputBusy || event.ctrlKey || event.metaKey || elements.photoFit.value !== "cover" || !event.deltaY) return;
+        const cell = hitCell(event);
+        if (!drag && !cell) return;
+        event.preventDefault();
+        const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? window.innerHeight : 1);
+        const factor = Math.exp(Math.max(-0.4, Math.min(0.4, -delta * 0.002)));
+        if (drag) {
+          if (!drag.canCrop || (cell && cell.photoIndex !== drag.fromIndex)) return;
+          changeZoom(drag.previewPhoto, factor);
+          drag.startEdit = { ...drag.previewPhoto.edit };
+          drag.startX = event.clientX;
+          drag.startY = event.clientY;
+          drag.geometry = getPhotoGeometry(drag.previewPhoto, drag.imageCell, "cover");
+          drag.active = true;
+          drag.targetCell = cell;
+          hideReorderTarget();
+          showCrop();
+        } else {
+          selectedPhotoIndex = cell.photoIndex;
+          changeZoom(photos[selectedPhotoIndex], factor);
+          syncPhotoControls();
+          scheduleRender({ keepPreviewPlan: true });
+        }
+      }, { passive: false });
+
       function hitCell(event) {
         if (elements.canvas.hidden) return null;
         return lastPreviewPlan?.cells.find(cell => {
@@ -1311,6 +1352,7 @@
         if (previous && elements.canvas.hasPointerCapture(previous.pointerId)) {
           elements.canvas.releasePointerCapture(previous.pointerId);
         }
+        if (previous?.needsRender) scheduleRender();
       };
 
       function showCrop() {
@@ -1331,15 +1373,20 @@
         const photo = photos[photoIndex];
         const rect = getCellViewportRect(getPhotoImageCell(cell, lastPreviewPlan));
         const imageCell = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
+        clearTimeout(renderTimer);
+        renderTimer = 0;
+        renderVersion++;
         drag = {
           pointerId: event.pointerId,
           fromIndex: photoIndex,
           targetCell: cell,
           photo,
           previewPhoto: { source: photo.source, edit: { ...photo.edit } },
+          startEdit: { ...photo.edit },
           imageCell,
           geometry: getPhotoGeometry(photo, imageCell, "cover"),
           canCrop,
+          needsRender: !lastPlan,
           startX: event.clientX,
           startY: event.clientY,
           active: false
@@ -1364,7 +1411,7 @@
             ["cropY", drag.geometry.overflowY, event.clientY - drag.startY]
           ]) {
             drag.previewPhoto.edit[axis] = overflow > 1e-9
-              ? Math.max(-1, Math.min(1, (drag.photo.edit[axis] ?? 0) + delta * 2 / overflow)) : 0;
+              ? Math.max(-1, Math.min(1, (drag.startEdit[axis] ?? 0) + delta * 2 / overflow)) : 0;
           }
           showCrop();
         } else if (drag.targetCell && drag.targetCell.photoIndex !== drag.fromIndex) {
@@ -1393,6 +1440,7 @@
         if ((!targetCell || targetCell.photoIndex === fromIndex) && canCrop) {
           photo.edit.cropX = previewPhoto.edit.cropX;
           photo.edit.cropY = previewPhoto.edit.cropY;
+          photo.edit.zoom = previewPhoto.edit.zoom;
           scheduleRender();
         } else if (targetCell && targetCell.photoIndex !== fromIndex) {
           movePhoto(fromIndex, targetCell.photoIndex);
@@ -1525,27 +1573,31 @@
       elements.previewStage.dataset.orientation = elements.orientation.value;
     }
 
-    function scheduleRender() {
+    function scheduleRender({ keepPreviewPlan = false } = {}) {
       cancelPhotoDrag();
       clearTimeout(renderTimer);
       closePhotoMenu();
       if (photos.length === 0) return;
       renderVersion++;
-      disableExports();
+      disableExports(keepPreviewPlan);
       showStatus("processing");
-      renderTimer = setTimeout(renderSelection, RENDER_DELAY_MS);
+      renderTimer = setTimeout(() => {
+        renderTimer = 0;
+        renderSelection(keepPreviewPlan);
+      }, RENDER_DELAY_MS);
     }
 
-    async function renderSelection() {
+    async function renderSelection(keepPreviewPlan = false) {
       cancelPhotoDrag();
       if (photos.length === 0) return;
       const version = ++renderVersion;
       let plan;
-      disableExports();
+      disableExports(keepPreviewPlan);
       showStatus("processing");
 
       try {
         await new Promise(resolve => requestAnimationFrame(resolve));
+        if (version !== renderVersion) return;
         cancelPhotoDrag();
         plan = readPlan();
         const previewPlan = fitSheetPlanToPixels(plan, PREVIEW_MAX_PIXELS);
@@ -1667,9 +1719,9 @@
       showStatus(failure.key, failure.values);
     }
 
-    function disableExports() {
+    function disableExports(keepPreviewPlan = false) {
       lastPlan = null;
-      lastPreviewPlan = null;
+      if (!keepPreviewPlan) lastPreviewPlan = null;
       elements.saveFile.disabled = true;
       elements.print.disabled = true;
     }
