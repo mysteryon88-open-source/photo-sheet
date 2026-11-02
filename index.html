@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Arrange photos on a print-ready sheet and export PNG, JPG, or PDF locally in your browser.">
   <link rel="icon" type="image/png" href="photo-sheet-icon.png">
-  <link rel="stylesheet" href="styles.css?v=20260811">
+  <link rel="stylesheet" href="styles.css?v=20261102-help">
   <title>Photo Sheet</title>
 </head>
 <body>
@@ -22,6 +22,7 @@
 
   <header class="topbar">
     <div class="top-actions">
+      <button id="help" class="icon-button" type="button" aria-label="Справка" aria-haspopup="dialog">?</button>
       <button id="theme" class="icon-button" type="button" aria-label="Включить тёмную тему">☾</button>
       <button id="language" class="icon-button language-button" type="button" aria-label="Switch to English">EN</button>
     </div>
@@ -125,11 +126,10 @@
             </select>
           </label>
 
-        <fieldset id="cropControls" class="crop-controls" hidden>
-          <legend id="cropTitle"></legend>
-          <button id="cropReset" type="button" data-i18n="cropReset">Сбросить кадр</button>
-          <small id="cropHint" data-i18n="cropHint">Зажмите фото и двигайте — можно выходить за края карточки и холста. Отпустите над другой фотографией — перенос. Колёсико или +/− — масштаб. Shift + стрелки — сдвиг, Esc — отмена.</small>
-        </fieldset>
+        <div id="cropControls" class="crop-controls" role="group" aria-labelledby="cropTitle" hidden>
+          <span id="cropTitle"></span>
+          <button id="cropReset" class="secondary-button crop-reset" type="button" aria-label="Сбросить кадр" title="Сбросить кадр"></button>
+        </div>
 
         <label class="toggle-control">
           <input id="cutMarks" type="checkbox">
@@ -190,6 +190,31 @@
 
 <div id="printHost" aria-hidden="true"><img id="printImage" alt=""></div>
 <style id="pageStyle"></style>
-<script defer src="photo-sheet.js?v=20261101-zoom-crop"></script>
+<dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
+  <div class="help-header">
+    <h2 id="helpTitle" data-i18n="helpTitle">Как пользоваться Photo Sheet</h2>
+    <form method="dialog"><button id="helpClose" class="secondary-button help-close" aria-label="Закрыть" autofocus>×</button></form>
+  </div>
+  <h3 data-i18n="helpSheetTitle">Подготовка листа</h3>
+  <p data-i18n="helpSheet">Добавьте JPG, PNG, WEBP или BMP кнопкой или перетащите файлы на лист. Одна фотография повторяется во всех ячейках; несколько располагаются по порядку. Настройте бумагу, ориентацию, DPI, поля и зазоры.</p>
+  <p data-i18n="helpGrid">Выберите автоматическую сетку, свою сетку, точный размер ячейки или Polaroid Mini / Wide с белой рамкой или без неё. «Вписать целиком» сохраняет всё фото, «Заполнить с обрезкой» заполняет кадр.</p>
+  <p data-i18n="helpManage"></p>
+  <h3 data-i18n="helpCropTitle">Кадрирование и редактирование</h3>
+  <p id="cropHint" data-i18n="cropHint"></p>
+  <p data-i18n="helpEdit">Щёлкните по фото, чтобы выбрать его. Правая кнопка мыши открывает поворот, отражение, сброс кадрирования и удаление. Сброс возвращает масштаб и положение; поворот и отражение сохраняются. Изменения одного фото применяются ко всем его копиям.</p>
+  <h3 data-i18n="helpKeysTitle">Горячие клавиши</h3>
+  <p data-i18n="helpKeysFocus">Клавиши работают, когда выбран лист: щёлкните по фотографии или перейдите к листу клавишей Tab.</p>
+  <dl class="help-keys">
+    <dt>← / →</dt><dd data-i18n="helpSelect">Выбрать предыдущее / следующее фото</dd>
+    <dt>Alt + ← / →</dt><dd data-i18n="helpReorder">Переместить выбранное фото в порядке листа</dd>
+    <dt>Shift + ← / → / ↑ / ↓</dt><dd data-i18n="helpMove">Сдвинуть кадр в режиме обрезки</dd>
+    <dt>+ / −</dt><dd data-i18n="helpZoom">Приблизить / отдалить в режиме обрезки (1–8×)</dd>
+    <dt>Shift + F10</dt><dd data-i18n="helpMenu">Открыть меню выбранного фото</dd>
+    <dt>Esc</dt><dd data-i18n="helpEscape">Отменить перетаскивание, закрыть меню или справку</dd>
+  </dl>
+  <h3 data-i18n="helpExportTitle">Сохранение и печать</h3>
+  <p data-i18n="helpExport">Сохраните лист в PNG, JPG или PDF либо отправьте на печать. Метки реза помогают вырезать карточки. Для точного размера печатайте в масштабе 100% без подгонки под страницу. Фото обрабатываются локально в браузере.</p>
+</dialog>
+<script defer src="photo-sheet.js?v=20261102-help"></script>
 </body>
 </html>

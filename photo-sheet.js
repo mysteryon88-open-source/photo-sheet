@@ -27,7 +27,25 @@
         photoFitLabel: "Placement in cell",
         photoFitContain: "Fit entire photo",
         photoFitCover: "Fill and crop",
-        cropTitle: "Crop · photo {number}",
+        cropTitle: "Crop · Photo #{number}",
+        helpTitle: "How to use Photo Sheet",
+        helpClose: "Close",
+        helpSheetTitle: "Prepare a sheet",
+        helpSheet: "Add JPG, PNG, WEBP or BMP files with the button or drop them onto the sheet. One photo repeats in every cell; multiple photos appear in order. Set the paper, orientation, DPI, margins and gaps.",
+        helpGrid: "Choose an automatic or custom grid, exact cell dimensions, or Polaroid Mini / Wide with or without white frames. Fit entire photo preserves the whole image; Fill and crop fills the frame.",
+        helpCropTitle: "Crop and edit",
+        helpManage: "Add more photos or replace the selection with the buttons. Clear sheet in the right-click menu removes every photo. If the grid is too small, enlarge it or keep only the photos that fit using the status button. The top buttons switch the theme and language.",
+        helpEdit: "Click a photo to select it. Right-click for rotation, flips, crop reset and removal. Reset restores zoom and position while keeping rotation and flips. Edits apply to all copies of the same photo.",
+        helpKeysTitle: "Keyboard shortcuts",
+        helpKeysFocus: "Shortcuts work when the sheet has focus: click a photo or use Tab to reach the sheet.",
+        helpSelect: "Select the previous / next photo",
+        helpReorder: "Move the selected photo in the sheet order",
+        helpMove: "Move the crop in Fill and crop mode",
+        helpZoom: "Zoom in / out in Fill and crop mode (1–8×)",
+        helpMenu: "Open the selected photo menu",
+        helpEscape: "Cancel dragging, close the menu or help",
+        helpExportTitle: "Save and print",
+        helpExport: "Save as PNG, JPG or PDF, or print the sheet. Crop marks help you cut the cards. Print at 100% scale without fitting to the page for accurate dimensions. Photos are processed locally in your browser.",
         cropReset: "Reset crop",
         cropHint: "Drag to adjust the crop, even beyond the card or sheet. Drop onto another photo to reorder. Wheel or +/−: zoom. Shift + arrows: move. Esc: cancel.",
         marginLabel: "Sheet margin",
@@ -97,7 +115,25 @@
         photoFitLabel: "Размещение в ячейке",
         photoFitContain: "Вписать целиком",
         photoFitCover: "Заполнить с обрезкой",
-        cropTitle: "Кадрирование · фото {number}",
+        cropTitle: "Кадрирование · Фото №{number}",
+        helpTitle: "Как пользоваться Photo Sheet",
+        helpClose: "Закрыть",
+        helpSheetTitle: "Подготовка листа",
+        helpSheet: "Добавьте JPG, PNG, WEBP или BMP кнопкой или перетащите файлы на лист. Одна фотография повторяется во всех ячейках; несколько располагаются по порядку. Настройте бумагу, ориентацию, DPI, поля и зазоры.",
+        helpGrid: "Выберите автоматическую сетку, свою сетку, точный размер ячейки или Polaroid Mini / Wide с белой рамкой или без неё. «Вписать целиком» сохраняет всё фото, «Заполнить с обрезкой» заполняет кадр.",
+        helpCropTitle: "Кадрирование и редактирование",
+        helpManage: "Кнопками можно добавить фото или заменить весь набор. «Очистить холст» в меню правой кнопки удаляет все фото. Если сетка мала, увеличьте её или оставьте только помещающиеся фотографии кнопкой под сообщением. Кнопки сверху переключают тему и язык.",
+        helpEdit: "Щёлкните по фото, чтобы выбрать его. Правая кнопка мыши открывает поворот, отражение, сброс кадрирования и удаление. Сброс возвращает масштаб и положение; поворот и отражение сохраняются. Изменения одного фото применяются ко всем его копиям.",
+        helpKeysTitle: "Горячие клавиши",
+        helpKeysFocus: "Клавиши работают, когда выбран лист: щёлкните по фотографии или перейдите к листу клавишей Tab.",
+        helpSelect: "Выбрать предыдущее / следующее фото",
+        helpReorder: "Переместить выбранное фото в порядке листа",
+        helpMove: "Сдвинуть кадр в режиме обрезки",
+        helpZoom: "Приблизить / отдалить в режиме обрезки (1–8×)",
+        helpMenu: "Открыть меню выбранного фото",
+        helpEscape: "Отменить перетаскивание, закрыть меню или справку",
+        helpExportTitle: "Сохранение и печать",
+        helpExport: "Сохраните лист в PNG, JPG или PDF либо отправьте на печать. Метки реза помогают вырезать карточки. Для точного размера печатайте в масштабе 100% без подгонки под страницу. Фото обрабатываются локально в браузере.",
         cropReset: "Сбросить кадр",
         cropHint: "Зажмите фото и двигайте — можно выходить за края карточки и холста. Отпустите над другой фотографией — перенос. Колёсико или +/− — масштаб. Shift + стрелки — сдвиг, Esc — отмена.",
         marginLabel: "Поля листа",
@@ -475,6 +511,7 @@
     }
 
     function editPhoto(photo, action) {
+      if (action === "cropReset") Object.assign(photo.edit, { cropX: 0, cropY: 0, zoom: 1 });
       if (action === "rotateLeft") photo.edit.rotation = (photo.edit.rotation + 270) % 360;
       if (action === "rotateRight") photo.edit.rotation = (photo.edit.rotation + 90) % 360;
       if (action === "flipHorizontal") photo.edit.flipX = !photo.edit.flipX;
@@ -960,6 +997,7 @@
     const MAX_DECODED_PHOTO_PIXELS = 240_000_000;
     const supportedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/bmp", "image/x-ms-bmp"]);
     const photoToolIcons = {
+      cropReset: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5"/><path d="M4.5 9a8 8 0 1 1-.2 6"/></svg>',
       rotateLeft: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V3h5"/><path d="M4.5 8A8 8 0 1 1 7 18.5"/></svg>',
       rotateRight: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 8V3h-5"/><path d="M19.5 8A8 8 0 1 0 17 18.5"/></svg>',
       flipHorizontal: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M10 5 4 12l6 7V5Zm4 0 6 7-6 7V5Z"/></svg>',
@@ -987,6 +1025,9 @@
       print: byId("print"),
       language: byId("language"),
       theme: byId("theme"),
+      help: byId("help"),
+      helpDialog: byId("helpDialog"),
+      helpClose: byId("helpClose"),
       paper: byId("paper"),
       orientation: byId("orientation"),
       dpi: byId("dpi"),
@@ -1026,6 +1067,7 @@
     let overflowCapacity = 0;
     let cancelPhotoDrag = () => {};
 
+    elements.cropReset.innerHTML = photoToolIcons.cropReset;
     bindEvents();
     setTheme(localStorage.getItem("theme") === "dark" ? "dark" : "light");
     setLocale(locale);
@@ -1033,6 +1075,11 @@
     syncPhotoControls();
 
     function bindEvents() {
+      elements.help.addEventListener("click", () => {
+        cancelPhotoDrag();
+        closePhotoMenu();
+        elements.helpDialog.showModal();
+      });
       elements.language.addEventListener("click", () => setLocale(locale === "ru" ? "en" : "ru"));
       elements.theme.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
       document.addEventListener("keydown", event => {
@@ -1066,13 +1113,7 @@
       }
       elements.cutMarks.addEventListener("change", scheduleRender);
       elements.cropReset.addEventListener("click", () => {
-        if (outputBusy || !photos[selectedPhotoIndex]) return;
-        cancelPhotoDrag();
-        photos[selectedPhotoIndex].edit.cropX = 0;
-        photos[selectedPhotoIndex].edit.cropY = 0;
-        photos[selectedPhotoIndex].edit.zoom = 1;
-        syncCropControls();
-        scheduleRender();
+        applySelectedPhotoAction("cropReset");
       });
       elements.trimPhotos.addEventListener("click", trimPhotosToCapacity);
       bindRange(elements.margin, elements.marginValue);
@@ -1309,6 +1350,7 @@
       });
 
       window.addEventListener("wheel", event => {
+        if (elements.helpDialog.open) return;
         if (outputBusy || event.ctrlKey || event.metaKey || elements.photoFit.value !== "cover" || !event.deltaY) return;
         const cell = hitCell(event);
         if (!drag && !cell) return;
@@ -1496,7 +1538,7 @@
         return button;
       };
       const photoActions = photoIndex >= 0
-        ? ["rotateLeft", "rotateRight", "flipHorizontal", "flipVertical", "removePhoto"].map(createButton)
+        ? ["rotateLeft", "rotateRight", "flipHorizontal", "flipVertical", "cropReset", "removePhoto"].map(createButton)
         : [];
       const separator = document.createElement("div");
       separator.className = "photo-menu-separator";
@@ -1773,6 +1815,10 @@
       document.title = t("pageTitle");
       for (const node of document.querySelectorAll("[data-i18n]")) node.textContent = t(node.dataset.i18n);
       elements.language.textContent = locale === "ru" ? "EN" : "RU";
+      elements.help.setAttribute("aria-label", t("helpTitle"));
+      elements.helpClose.setAttribute("aria-label", t("helpClose"));
+      elements.cropReset.setAttribute("aria-label", t("cropReset"));
+      elements.cropReset.title = t("cropReset");
       elements.language.setAttribute("aria-label", t(locale === "ru" ? "switchEnglish" : "switchRussian"));
       elements.theme.setAttribute("aria-label", t(document.documentElement.dataset.theme === "dark" ? "lightTheme" : "darkTheme"));
       syncPhotoControls();

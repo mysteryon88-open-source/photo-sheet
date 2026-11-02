@@ -90,6 +90,7 @@ export function disposePhotos(photos) {
 }
 
 export function editPhoto(photo, action) {
+  if (action === "cropReset") Object.assign(photo.edit, { cropX: 0, cropY: 0, zoom: 1 });
   if (action === "rotateLeft") photo.edit.rotation = (photo.edit.rotation + 270) % 360;
   if (action === "rotateRight") photo.edit.rotation = (photo.edit.rotation + 90) % 360;
   if (action === "flipHorizontal") photo.edit.flipX = !photo.edit.flipX;

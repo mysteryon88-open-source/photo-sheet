@@ -12,6 +12,12 @@ import { getPhotoGeometry, getPhotoImageCell, renderCropPreview, renderSheet } f
 const { buildSheetPlan, getCutMarkSegments, resolvePaper } = layout;
 const { setPngDpi } = dpiMetadata;
 
+test("crop reset clears position and zoom while preserving rotation and flips", () => {
+  const photo = { source: {}, edit: { rotation: 90, flipX: true, flipY: false, cropX: 0.7, cropY: -1, zoom: 4 } };
+  photoUtils.editPhoto(photo, "cropReset");
+  assert.deepEqual(photo.edit, { rotation: 90, flipX: true, flipY: false, cropX: 0, cropY: 0, zoom: 1 });
+});
+
 test("photo zoom is bounded, rotation aware, and ignored by contain", () => {
   const cell = { x: 10, y: 20, width: 100, height: 100 };
   for (const rotation of [0, 90, 180, 270]) {

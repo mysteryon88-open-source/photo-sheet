@@ -10,6 +10,7 @@ const PHOTO_LOAD_CONCURRENCY = 3;
 const MAX_DECODED_PHOTO_PIXELS = 240_000_000;
 const supportedTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/bmp", "image/x-ms-bmp"]);
 const photoToolIcons = {
+  cropReset: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5"/><path d="M4.5 9a8 8 0 1 1-.2 6"/></svg>',
   rotateLeft: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V3h5"/><path d="M4.5 8A8 8 0 1 1 7 18.5"/></svg>',
   rotateRight: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 8V3h-5"/><path d="M19.5 8A8 8 0 1 0 17 18.5"/></svg>',
   flipHorizontal: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M10 5 4 12l6 7V5Zm4 0 6 7-6 7V5Z"/></svg>',
@@ -37,6 +38,9 @@ const elements = {
   print: byId("print"),
   language: byId("language"),
   theme: byId("theme"),
+  help: byId("help"),
+  helpDialog: byId("helpDialog"),
+  helpClose: byId("helpClose"),
   paper: byId("paper"),
   orientation: byId("orientation"),
   dpi: byId("dpi"),
@@ -76,6 +80,7 @@ let outputBusy = false;
 let overflowCapacity = 0;
 let cancelPhotoDrag = () => {};
 
+elements.cropReset.innerHTML = photoToolIcons.cropReset;
 bindEvents();
 setTheme(localStorage.getItem("theme") === "dark" ? "dark" : "light");
 setLocale(locale);
@@ -83,6 +88,11 @@ syncConditionalControls();
 syncPhotoControls();
 
 function bindEvents() {
+  elements.help.addEventListener("click", () => {
+    cancelPhotoDrag();
+    closePhotoMenu();
+    elements.helpDialog.showModal();
+  });
   elements.language.addEventListener("click", () => setLocale(locale === "ru" ? "en" : "ru"));
   elements.theme.addEventListener("click", () => setTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark"));
   document.addEventListener("keydown", event => {
@@ -116,13 +126,7 @@ function bindEvents() {
   }
   elements.cutMarks.addEventListener("change", scheduleRender);
   elements.cropReset.addEventListener("click", () => {
-    if (outputBusy || !photos[selectedPhotoIndex]) return;
-    cancelPhotoDrag();
-    photos[selectedPhotoIndex].edit.cropX = 0;
-    photos[selectedPhotoIndex].edit.cropY = 0;
-    photos[selectedPhotoIndex].edit.zoom = 1;
-    syncCropControls();
-    scheduleRender();
+    applySelectedPhotoAction("cropReset");
   });
   elements.trimPhotos.addEventListener("click", trimPhotosToCapacity);
   bindRange(elements.margin, elements.marginValue);
@@ -359,6 +363,7 @@ function bindCanvasReorder() {
   });
 
   window.addEventListener("wheel", event => {
+    if (elements.helpDialog.open) return;
     if (outputBusy || event.ctrlKey || event.metaKey || elements.photoFit.value !== "cover" || !event.deltaY) return;
     const cell = hitCell(event);
     if (!drag && !cell) return;
@@ -546,7 +551,7 @@ function renderPhotoMenu(photoIndex) {
     return button;
   };
   const photoActions = photoIndex >= 0
-    ? ["rotateLeft", "rotateRight", "flipHorizontal", "flipVertical", "removePhoto"].map(createButton)
+    ? ["rotateLeft", "rotateRight", "flipHorizontal", "flipVertical", "cropReset", "removePhoto"].map(createButton)
     : [];
   const separator = document.createElement("div");
   separator.className = "photo-menu-separator";
@@ -823,6 +828,10 @@ function setLocale(nextLocale) {
   document.title = t("pageTitle");
   for (const node of document.querySelectorAll("[data-i18n]")) node.textContent = t(node.dataset.i18n);
   elements.language.textContent = locale === "ru" ? "EN" : "RU";
+  elements.help.setAttribute("aria-label", t("helpTitle"));
+  elements.helpClose.setAttribute("aria-label", t("helpClose"));
+  elements.cropReset.setAttribute("aria-label", t("cropReset"));
+  elements.cropReset.title = t("cropReset");
   elements.language.setAttribute("aria-label", t(locale === "ru" ? "switchEnglish" : "switchRussian"));
   elements.theme.setAttribute("aria-label", t(document.documentElement.dataset.theme === "dark" ? "lightTheme" : "darkTheme"));
   syncPhotoControls();
