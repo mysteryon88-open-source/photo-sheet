@@ -707,8 +707,8 @@ async function renderSelection(keepPreviewPlan = false) {
     lastPlan = hasOverflow ? null : plan;
     lastPreviewPlan = previewPlan;
     elements.canvas.hidden = false;
-    syncPhotoControls();
     elements.emptyPreview.hidden = true;
+    syncPhotoControls();
     elements.saveFile.disabled = hasOverflow;
     elements.print.disabled = hasOverflow;
     if (hasOverflow) {

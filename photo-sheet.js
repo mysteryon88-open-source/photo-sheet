@@ -77,7 +77,7 @@
           "{width} × {height} px · {columns} × {rows} · Photos: {copies}",
         needPhotos: "Choose at least one supported JPG, PNG, WEBP, or BMP image.",
         photoMemoryLimit: "These photos are too large to open together. Choose fewer or lower-resolution files.",
-        gridTooSmall: "Selected: {selected}. Fits: {capacity}. Delete extra photos.",
+        gridTooSmall: "Selected: {selected}. Fits: {capacity}.\nDelete extra photos.",
         trimPhotos: "Delete extras (keep {capacity})",
         cellsDoNotFit: "These photo cells do not fit on the selected paper.",
         invalidPhotoSize: "Enter a photo width and height of at least 5 mm.",
@@ -166,7 +166,7 @@
           "{width} × {height} px · {columns} × {rows} · Фото: {copies}",
         needPhotos: "Выберите хотя бы одно изображение JPG, PNG, WEBP или BMP.",
         photoMemoryLimit: "Эти фотографии слишком велики для одновременного открытия. Выберите меньше файлов или версии с меньшим разрешением.",
-        gridTooSmall: "Выбрано: {selected}. Помещается: {capacity}. Удалите лишние фото.",
+        gridTooSmall: "Выбрано: {selected}. Помещается: {capacity}.\nУдалите лишние фото.",
         trimPhotos: "Удалить лишние (оставить {capacity})",
         cellsDoNotFit: "Ячейки такого размера не помещаются на выбранной бумаге.",
         invalidPhotoSize: "Укажите ширину и высоту фотографии не меньше 5 мм.",
@@ -1696,8 +1696,8 @@
         lastPlan = hasOverflow ? null : plan;
         lastPreviewPlan = previewPlan;
         elements.canvas.hidden = false;
-        syncPhotoControls();
         elements.emptyPreview.hidden = true;
+        syncPhotoControls();
         elements.saveFile.disabled = hasOverflow;
         elements.print.disabled = hasOverflow;
         if (hasOverflow) {
