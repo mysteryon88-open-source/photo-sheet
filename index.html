@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Arrange photos on a print-ready sheet and export PNG, JPG, or PDF locally in your browser.">
   <link rel="icon" type="image/png" href="photo-sheet-icon.png">
-  <link rel="stylesheet" href="styles.css?v=20261102-notice">
+  <link rel="stylesheet" href="styles.css?v=20261102-notice-revert">
   <title>Photo Sheet</title>
 </head>
 <body>
@@ -147,6 +147,10 @@
       <input id="files" type="file" accept="image/jpeg,image/png,image/webp,image/bmp" multiple hidden>
 
       <div class="sidebar-footer">
+        <p id="status" class="status" role="status" aria-live="polite"></p>
+        <div id="statusActions" class="status-actions" hidden>
+          <button id="trimPhotos" class="secondary-button" type="button"></button>
+        </div>
         <div class="export-actions">
           <label class="export-format">
             <span class="sr-only" data-i18n="exportFormatLabel">Формат файла</span>
@@ -178,12 +182,6 @@
       <div id="emptyPreview" class="empty-preview" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       <div class="canvas-drop-message" data-i18n="dropToAdd">Отпустите фото, чтобы добавить</div>
     </section>
-    <div class="sheet-notice">
-      <p id="status" class="status" role="status" aria-live="polite"></p>
-      <div id="statusActions" class="status-actions" hidden>
-        <button id="trimPhotos" class="secondary-button" type="button"></button>
-      </div>
-    </div>
   </div>
 
   <div id="photoMenu" class="photo-menu" role="menu" hidden></div>
