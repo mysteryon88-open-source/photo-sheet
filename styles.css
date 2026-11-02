@@ -93,7 +93,6 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .help-dialog { overflow: auto; scrollbar-width: none; overscroll-behavior: contain; }
 .help-dialog::-webkit-scrollbar { display: none; }
 .photo-selection { position: fixed; z-index: 3; box-sizing: border-box; border: 2px solid var(--accent); box-shadow: 0 0 0 1px #fff, inset 0 0 0 1px #fff; pointer-events: none; }
-.photo-selection::after { content: "✓"; position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 20px; height: 20px; background: var(--accent); color: #fff; font: 700 14px/1 Arial, sans-serif; }
 .photo-selection[hidden] { display: none; }
 .help-header { display: flex; align-items: start; gap: 16px; justify-content: space-between; }
 .help-header h2 { margin: 0; font: 700 22px/1.3 Georgia, serif; }
