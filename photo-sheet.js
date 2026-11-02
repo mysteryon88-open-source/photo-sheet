@@ -37,8 +37,9 @@
         helpManage: "Add more photos or replace the selection with the buttons. Clear sheet in the right-click menu removes every photo. If the grid is too small, enlarge it or keep only the photos that fit using the status button. The top buttons switch the theme and language.",
         helpEdit: "Click a photo to select it. Right-click for rotation, flips, crop reset and removal. Reset restores zoom and position while keeping rotation and flips. Edits apply to all copies of the same photo.",
         helpKeysTitle: "Keyboard shortcuts",
-        helpKeysFocus: "Shortcuts work when the sheet has focus: click a photo or use Tab to reach the sheet.",
-        helpSelect: "Select the previous / next photo",
+        helpKeysFocus: "Click a photo: the outlined photo is selected. Use arrows to move its crop. Tab / Shift + Tab selects another photo; at the ends, Tab leaves the sheet.",
+        helpSelect: "Select the next / previous photo",
+        helpDelete: "Delete the selected photo and all its copies",
         helpReorder: "Move the selected photo in the sheet order",
         helpMove: "Move the crop in Fill and crop mode",
         helpZoom: "Zoom in / out in Fill and crop mode (1–8×)",
@@ -47,7 +48,7 @@
         helpExportTitle: "Save and print",
         helpExport: "Save as PNG, JPG or PDF, or print the sheet. Crop marks help you cut the cards. Print at 100% scale without fitting to the page for accurate dimensions. Photos are processed locally in your browser.",
         cropReset: "Reset crop",
-        cropHint: "Drag to adjust the crop, even beyond the card or sheet. Drop onto another photo to reorder. Wheel or +/−: zoom. Shift + arrows: move. Esc: cancel.",
+        cropHint: "Drag to adjust the crop, even beyond the card or sheet. Drop onto another photo to reorder. Wheel or +/−: zoom. Arrows: move. Esc: cancel.",
         marginLabel: "Sheet margin",
         gapLabel: "Gap between photos",
         cutMarksLabel: "Add crop marks",
@@ -73,11 +74,11 @@
         loadingProgress: "Opening photos: {completed} of {total}...",
         processing: "Building the print sheet...",
         ready:
-          "Ready: {width} × {height} px, {columns} × {rows} grid, filled cells: {copies}.",
+          "{width} × {height} px · {columns} × {rows} · Photos: {copies}",
         needPhotos: "Choose at least one supported JPG, PNG, WEBP, or BMP image.",
         photoMemoryLimit: "These photos are too large to open together. Choose fewer or lower-resolution files.",
-        gridTooSmall: "Selected: {selected}. The first {capacity} are shown. Right-click a photo to remove it, increase the grid, or reduce the cell size.",
-        trimPhotos: "Keep the first {capacity}",
+        gridTooSmall: "Selected: {selected}. Fits: {capacity}. Delete extra photos.",
+        trimPhotos: "Delete extras (keep {capacity})",
         cellsDoNotFit: "These photo cells do not fit on the selected paper.",
         invalidPhotoSize: "Enter a photo width and height of at least 5 mm.",
         outputTooLargeTitle: "This file is too large for the browser",
@@ -125,8 +126,9 @@
         helpManage: "Кнопками можно добавить фото или заменить весь набор. «Очистить холст» в меню правой кнопки удаляет все фото. Если сетка мала, увеличьте её или оставьте только помещающиеся фотографии кнопкой под сообщением. Кнопки сверху переключают тему и язык.",
         helpEdit: "Щёлкните по фото, чтобы выбрать его. Правая кнопка мыши открывает поворот, отражение, сброс кадрирования и удаление. Сброс возвращает масштаб и положение; поворот и отражение сохраняются. Изменения одного фото применяются ко всем его копиям.",
         helpKeysTitle: "Горячие клавиши",
-        helpKeysFocus: "Клавиши работают, когда выбран лист: щёлкните по фотографии или перейдите к листу клавишей Tab.",
-        helpSelect: "Выбрать предыдущее / следующее фото",
+        helpKeysFocus: "Щёлкните по фото: выбранное фото выделяется рамкой. Стрелки двигают его кадр. Tab / Shift + Tab выбирает другое фото; на краях Tab переводит фокус за пределы листа.",
+        helpSelect: "Выбрать следующее / предыдущее фото",
+        helpDelete: "Удалить выбранное фото и все его копии",
         helpReorder: "Переместить выбранное фото в порядке листа",
         helpMove: "Сдвинуть кадр в режиме обрезки",
         helpZoom: "Приблизить / отдалить в режиме обрезки (1–8×)",
@@ -135,7 +137,7 @@
         helpExportTitle: "Сохранение и печать",
         helpExport: "Сохраните лист в PNG, JPG или PDF либо отправьте на печать. Метки реза помогают вырезать карточки. Для точного размера печатайте в масштабе 100% без подгонки под страницу. Фото обрабатываются локально в браузере.",
         cropReset: "Сбросить кадр",
-        cropHint: "Зажмите фото и двигайте — можно выходить за края карточки и холста. Отпустите над другой фотографией — перенос. Колёсико или +/− — масштаб. Shift + стрелки — сдвиг, Esc — отмена.",
+        cropHint: "Зажмите фото и двигайте — можно выходить за края карточки и холста. Отпустите над другой фотографией — перенос. Колёсико или +/− — масштаб. Стрелки — сдвиг, Esc — отмена.",
         marginLabel: "Поля листа",
         gapLabel: "Зазор между фото",
         cutMarksLabel: "Добавить метки реза",
@@ -161,11 +163,11 @@
         loadingProgress: "Открываю фотографии: {completed} из {total}...",
         processing: "Собираю лист для печати...",
         ready:
-          "Готово: {width} × {height} px, сетка {columns} × {rows}, заполнено ячеек: {copies}.",
+          "{width} × {height} px · {columns} × {rows} · Фото: {copies}",
         needPhotos: "Выберите хотя бы одно изображение JPG, PNG, WEBP или BMP.",
         photoMemoryLimit: "Эти фотографии слишком велики для одновременного открытия. Выберите меньше файлов или версии с меньшим разрешением.",
-        gridTooSmall: "Выбрано: {selected}. Показаны первые {capacity}. Нажмите правой кнопкой на фото, чтобы удалить его, увеличьте сетку или уменьшите размер ячейки.",
-        trimPhotos: "Оставить первые {capacity}",
+        gridTooSmall: "Выбрано: {selected}. Помещается: {capacity}. Удалите лишние фото.",
+        trimPhotos: "Удалить лишние (оставить {capacity})",
         cellsDoNotFit: "Ячейки такого размера не помещаются на выбранной бумаге.",
         invalidPhotoSize: "Укажите ширину и высоту фотографии не меньше 5 мм.",
         outputTooLargeTitle: "Такой файл слишком большой для браузера",
@@ -1012,6 +1014,7 @@
       sidebar: document.querySelector(".sidebar"),
       canvas: byId("preview"),
       reorderTarget: byId("reorderTarget"),
+      selectionOutline: byId("selectionOutline"),
       emptyPreview: byId("emptyPreview"),
       previewStage: document.querySelector(".preview-stage"),
       fileInput: byId("files"),
@@ -1056,6 +1059,7 @@
     let locale = localStorage.getItem("locale") === "en" ? "en" : "ru";
     let photos = [];
     let selectedPhotoIndex = 0;
+    let selectedCellIndex = 0;
     let lastPlan = null;
     let lastPreviewPlan = null;
     let renderTimer = 0;
@@ -1075,6 +1079,19 @@
     syncPhotoControls();
 
     function bindEvents() {
+      let backdropPressed = false;
+      const outsideHelp = event => {
+        const rect = elements.helpDialog.getBoundingClientRect();
+        return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+      };
+      elements.helpDialog.addEventListener("pointerdown", event => {
+        backdropPressed = event.target === elements.helpDialog && outsideHelp(event);
+      });
+      elements.helpDialog.addEventListener("pointerup", event => {
+        if (backdropPressed && event.target === elements.helpDialog && outsideHelp(event)) elements.helpDialog.close();
+        backdropPressed = false;
+      });
+      elements.helpDialog.addEventListener("pointercancel", () => { backdropPressed = false; });
       elements.help.addEventListener("click", () => {
         cancelPhotoDrag();
         closePhotoMenu();
@@ -1129,24 +1146,34 @@
       elements.previewStage.addEventListener("contextmenu", openPhotoMenu);
       elements.previewStage.addEventListener("keydown", event => {
         if (outputBusy) return;
-        if (event.shiftKey && event.key.startsWith("Arrow") && photos[selectedPhotoIndex] && elements.photoFit.value === "cover") {
+        if (event.key === "Tab" && lastPreviewPlan?.cells.length) {
+          const next = selectedCellIndex + (event.shiftKey ? -1 : 1);
+          if (next >= 0 && next < lastPreviewPlan.cells.length) {
+            event.preventDefault();
+            selectedCellIndex = next;
+            selectedPhotoIndex = lastPreviewPlan.cells[next].photoIndex;
+            syncPhotoControls();
+          }
+          return;
+        }
+        if (event.key === "Delete" && photos[selectedPhotoIndex]) {
+          event.preventDefault();
+          removeSelectedPhoto();
+          return;
+        }
+        if (event.altKey && photos.length > 0 && ["ArrowLeft", "ArrowRight"].includes(event.key)) {
+          event.preventDefault();
+          movePhoto(selectedPhotoIndex, selectedPhotoIndex + (event.key === "ArrowLeft" ? -1 : 1));
+          return;
+        }
+        if (!event.altKey && event.key.startsWith("Arrow") && photos[selectedPhotoIndex] && elements.photoFit.value === "cover") {
           event.preventDefault();
           cancelPhotoDrag();
           const axis = event.key === "ArrowLeft" || event.key === "ArrowRight" ? "cropX" : "cropY";
           const delta = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -0.05 : 0.05;
           const edit = photos[selectedPhotoIndex].edit;
           edit[axis] = Math.max(-1, Math.min(1, (edit[axis] ?? 0) + delta));
-          scheduleRender();
-          return;
-        }
-        if (photos.length > 0 && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
-          event.preventDefault();
-          const delta = event.key === "ArrowLeft" ? -1 : 1;
-          if (event.altKey) movePhoto(selectedPhotoIndex, selectedPhotoIndex + delta);
-          else {
-            selectedPhotoIndex = Math.max(0, Math.min(photos.length - 1, selectedPhotoIndex + delta));
-            syncPhotoControls();
-          }
+          scheduleRender({ keepPreviewPlan: true });
           return;
         }
         if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) openPhotoMenu(event);
@@ -1157,7 +1184,9 @@
       window.addEventListener("resize", () => {
         closePhotoMenu();
         hideReorderTarget();
+        syncSelectionOutline();
       });
+      window.addEventListener("scroll", syncSelectionOutline, true);
 
       elements.saveFile.addEventListener("click", saveSelectedFile);
       elements.print.addEventListener("click", printSheet);
@@ -1273,12 +1302,28 @@
       selectedPhotoIndex = Math.min(selectedPhotoIndex, Math.max(0, photos.length - 1));
       elements.sidebar.classList.toggle("has-photos", photos.length > 0);
       elements.canvas.classList.toggle("reorderable", photos.length > 1 || (photos.length > 0 && elements.photoFit.value === "cover"));
+      syncSelectionOutline();
       const labelKey = photos.length > 1 ? "canvasReorderLabel" : photos.length === 1 ? "canvasPhotoLabel" : "previewLabel";
       elements.previewStage.setAttribute("aria-label", t(labelKey, {
         number: selectedPhotoIndex + 1,
         count: photos.length
       }));
       syncCropControls();
+    }
+
+    function syncSelectionOutline() {
+      const cells = lastPreviewPlan?.cells ?? [];
+      elements.selectionOutline.hidden = photos.length === 0 || elements.canvas.hidden || cells.length === 0;
+      if (elements.selectionOutline.hidden) return;
+      if (cells[selectedCellIndex]?.photoIndex !== selectedPhotoIndex) {
+        const matching = cells.findIndex(cell => cell.photoIndex === selectedPhotoIndex);
+        selectedCellIndex = matching >= 0 ? matching : Math.min(selectedCellIndex, cells.length - 1);
+      }
+      selectedPhotoIndex = cells[selectedCellIndex].photoIndex;
+      const rect = getCellViewportRect(cells[selectedCellIndex]);
+      Object.assign(elements.selectionOutline.style, {
+        left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`
+      });
     }
 
     function syncCropControls() {
@@ -1346,7 +1391,7 @@
         event.preventDefault();
         cancelPhotoDrag();
         changeZoom(photos[selectedPhotoIndex], event.key === "-" ? 1 / 1.1 : 1.1);
-        scheduleRender();
+        scheduleRender({ keepPreviewPlan: true });
       });
 
       window.addEventListener("wheel", event => {
@@ -1408,6 +1453,7 @@
         if (!cell) return;
         const photoIndex = cell.photoIndex;
         selectedPhotoIndex = photoIndex;
+        selectedCellIndex = lastPreviewPlan.cells.indexOf(cell);
         syncPhotoControls();
         elements.previewStage.focus({ preventScroll: true });
         const canCrop = lastPreviewPlan.photoFit === "cover";
@@ -1649,8 +1695,8 @@
         const hasOverflow = plan.overflowCount > 0;
         lastPlan = hasOverflow ? null : plan;
         lastPreviewPlan = previewPlan;
-        syncCropControls();
         elements.canvas.hidden = false;
+        syncPhotoControls();
         elements.emptyPreview.hidden = true;
         elements.saveFile.disabled = hasOverflow;
         elements.print.disabled = hasOverflow;
@@ -1764,6 +1810,7 @@
     function disableExports(keepPreviewPlan = false) {
       lastPlan = null;
       if (!keepPreviewPlan) lastPreviewPlan = null;
+      syncSelectionOutline();
       elements.saveFile.disabled = true;
       elements.print.disabled = true;
     }

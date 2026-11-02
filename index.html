@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Arrange photos on a print-ready sheet and export PNG, JPG, or PDF locally in your browser.">
   <link rel="icon" type="image/png" href="photo-sheet-icon.png">
-  <link rel="stylesheet" href="styles.css?v=20261102-help">
+  <link rel="stylesheet" href="styles.css?v=20261102-selection">
   <title>Photo Sheet</title>
 </head>
 <body>
@@ -171,13 +171,14 @@
       </div>
     </aside>
 
-    <section class="preview-stage" data-orientation="landscape" aria-label="Предпросмотр листа" aria-describedby="cropHint" aria-haspopup="menu" aria-keyshortcuts="ArrowLeft ArrowRight Alt+ArrowLeft Alt+ArrowRight Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+F10 Escape" tabindex="0">
+    <section class="preview-stage" data-orientation="landscape" aria-label="Предпросмотр листа" aria-describedby="cropHint" aria-haspopup="menu" aria-keyshortcuts="Tab Shift+Tab Delete ArrowUp ArrowDown ArrowLeft ArrowRight Alt+ArrowLeft Alt+ArrowRight Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+F10 Escape" tabindex="0">
       <span class="stage-sparkle stage-sparkle--left" aria-hidden="true">✦</span>
       <span class="stage-sparkle stage-sparkle--bottom" aria-hidden="true">✧</span>
       <span class="stage-sparkle stage-sparkle--top-left" aria-hidden="true">✧</span>
       <span class="stage-sparkle stage-sparkle--right" aria-hidden="true">✦</span>
       <canvas id="preview" hidden></canvas>
       <div id="reorderTarget" class="canvas-reorder-target" aria-hidden="true" hidden></div>
+      <div id="selectionOutline" class="photo-selection" aria-hidden="true" hidden></div>
       <div id="emptyPreview" class="empty-preview" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       <div class="canvas-drop-message" data-i18n="dropToAdd">Отпустите фото, чтобы добавить</div>
     </section>
@@ -205,9 +206,10 @@
   <h3 data-i18n="helpKeysTitle">Горячие клавиши</h3>
   <p data-i18n="helpKeysFocus">Клавиши работают, когда выбран лист: щёлкните по фотографии или перейдите к листу клавишей Tab.</p>
   <dl class="help-keys">
-    <dt>← / →</dt><dd data-i18n="helpSelect">Выбрать предыдущее / следующее фото</dd>
+    <dt>Tab / Shift + Tab</dt><dd data-i18n="helpSelect">Выбрать следующее / предыдущее фото</dd>
     <dt>Alt + ← / →</dt><dd data-i18n="helpReorder">Переместить выбранное фото в порядке листа</dd>
-    <dt>Shift + ← / → / ↑ / ↓</dt><dd data-i18n="helpMove">Сдвинуть кадр в режиме обрезки</dd>
+    <dt>← / → / ↑ / ↓</dt><dd data-i18n="helpMove">Сдвинуть кадр в режиме обрезки</dd>
+    <dt>Delete</dt><dd data-i18n="helpDelete"></dd>
     <dt>+ / −</dt><dd data-i18n="helpZoom">Приблизить / отдалить в режиме обрезки (1–8×)</dd>
     <dt>Shift + F10</dt><dd data-i18n="helpMenu">Открыть меню выбранного фото</dd>
     <dt>Esc</dt><dd data-i18n="helpEscape">Отменить перетаскивание, закрыть меню или справку</dd>
@@ -215,6 +217,6 @@
   <h3 data-i18n="helpExportTitle">Сохранение и печать</h3>
   <p data-i18n="helpExport">Сохраните лист в PNG, JPG или PDF либо отправьте на печать. Метки реза помогают вырезать карточки. Для точного размера печатайте в масштабе 100% без подгонки под страницу. Фото обрабатываются локально в браузере.</p>
 </dialog>
-<script defer src="photo-sheet.js?v=20261102-help"></script>
+<script defer src="photo-sheet.js?v=20261102-selection"></script>
 </body>
 </html>

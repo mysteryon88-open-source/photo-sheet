@@ -25,6 +25,7 @@ const elements = {
   sidebar: document.querySelector(".sidebar"),
   canvas: byId("preview"),
   reorderTarget: byId("reorderTarget"),
+  selectionOutline: byId("selectionOutline"),
   emptyPreview: byId("emptyPreview"),
   previewStage: document.querySelector(".preview-stage"),
   fileInput: byId("files"),
@@ -69,6 +70,7 @@ const printController = createPrintController(byId("printImage"), byId("pageStyl
 let locale = localStorage.getItem("locale") === "en" ? "en" : "ru";
 let photos = [];
 let selectedPhotoIndex = 0;
+let selectedCellIndex = 0;
 let lastPlan = null;
 let lastPreviewPlan = null;
 let renderTimer = 0;
@@ -88,6 +90,19 @@ syncConditionalControls();
 syncPhotoControls();
 
 function bindEvents() {
+  let backdropPressed = false;
+  const outsideHelp = event => {
+    const rect = elements.helpDialog.getBoundingClientRect();
+    return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+  };
+  elements.helpDialog.addEventListener("pointerdown", event => {
+    backdropPressed = event.target === elements.helpDialog && outsideHelp(event);
+  });
+  elements.helpDialog.addEventListener("pointerup", event => {
+    if (backdropPressed && event.target === elements.helpDialog && outsideHelp(event)) elements.helpDialog.close();
+    backdropPressed = false;
+  });
+  elements.helpDialog.addEventListener("pointercancel", () => { backdropPressed = false; });
   elements.help.addEventListener("click", () => {
     cancelPhotoDrag();
     closePhotoMenu();
@@ -142,24 +157,34 @@ function bindEvents() {
   elements.previewStage.addEventListener("contextmenu", openPhotoMenu);
   elements.previewStage.addEventListener("keydown", event => {
     if (outputBusy) return;
-    if (event.shiftKey && event.key.startsWith("Arrow") && photos[selectedPhotoIndex] && elements.photoFit.value === "cover") {
+    if (event.key === "Tab" && lastPreviewPlan?.cells.length) {
+      const next = selectedCellIndex + (event.shiftKey ? -1 : 1);
+      if (next >= 0 && next < lastPreviewPlan.cells.length) {
+        event.preventDefault();
+        selectedCellIndex = next;
+        selectedPhotoIndex = lastPreviewPlan.cells[next].photoIndex;
+        syncPhotoControls();
+      }
+      return;
+    }
+    if (event.key === "Delete" && photos[selectedPhotoIndex]) {
+      event.preventDefault();
+      removeSelectedPhoto();
+      return;
+    }
+    if (event.altKey && photos.length > 0 && ["ArrowLeft", "ArrowRight"].includes(event.key)) {
+      event.preventDefault();
+      movePhoto(selectedPhotoIndex, selectedPhotoIndex + (event.key === "ArrowLeft" ? -1 : 1));
+      return;
+    }
+    if (!event.altKey && event.key.startsWith("Arrow") && photos[selectedPhotoIndex] && elements.photoFit.value === "cover") {
       event.preventDefault();
       cancelPhotoDrag();
       const axis = event.key === "ArrowLeft" || event.key === "ArrowRight" ? "cropX" : "cropY";
       const delta = event.key === "ArrowLeft" || event.key === "ArrowUp" ? -0.05 : 0.05;
       const edit = photos[selectedPhotoIndex].edit;
       edit[axis] = Math.max(-1, Math.min(1, (edit[axis] ?? 0) + delta));
-      scheduleRender();
-      return;
-    }
-    if (photos.length > 0 && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
-      event.preventDefault();
-      const delta = event.key === "ArrowLeft" ? -1 : 1;
-      if (event.altKey) movePhoto(selectedPhotoIndex, selectedPhotoIndex + delta);
-      else {
-        selectedPhotoIndex = Math.max(0, Math.min(photos.length - 1, selectedPhotoIndex + delta));
-        syncPhotoControls();
-      }
+      scheduleRender({ keepPreviewPlan: true });
       return;
     }
     if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) openPhotoMenu(event);
@@ -170,7 +195,9 @@ function bindEvents() {
   window.addEventListener("resize", () => {
     closePhotoMenu();
     hideReorderTarget();
+    syncSelectionOutline();
   });
+  window.addEventListener("scroll", syncSelectionOutline, true);
 
   elements.saveFile.addEventListener("click", saveSelectedFile);
   elements.print.addEventListener("click", printSheet);
@@ -286,12 +313,28 @@ function syncPhotoControls() {
   selectedPhotoIndex = Math.min(selectedPhotoIndex, Math.max(0, photos.length - 1));
   elements.sidebar.classList.toggle("has-photos", photos.length > 0);
   elements.canvas.classList.toggle("reorderable", photos.length > 1 || (photos.length > 0 && elements.photoFit.value === "cover"));
+  syncSelectionOutline();
   const labelKey = photos.length > 1 ? "canvasReorderLabel" : photos.length === 1 ? "canvasPhotoLabel" : "previewLabel";
   elements.previewStage.setAttribute("aria-label", t(labelKey, {
     number: selectedPhotoIndex + 1,
     count: photos.length
   }));
   syncCropControls();
+}
+
+function syncSelectionOutline() {
+  const cells = lastPreviewPlan?.cells ?? [];
+  elements.selectionOutline.hidden = photos.length === 0 || elements.canvas.hidden || cells.length === 0;
+  if (elements.selectionOutline.hidden) return;
+  if (cells[selectedCellIndex]?.photoIndex !== selectedPhotoIndex) {
+    const matching = cells.findIndex(cell => cell.photoIndex === selectedPhotoIndex);
+    selectedCellIndex = matching >= 0 ? matching : Math.min(selectedCellIndex, cells.length - 1);
+  }
+  selectedPhotoIndex = cells[selectedCellIndex].photoIndex;
+  const rect = getCellViewportRect(cells[selectedCellIndex]);
+  Object.assign(elements.selectionOutline.style, {
+    left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`
+  });
 }
 
 function syncCropControls() {
@@ -359,7 +402,7 @@ function bindCanvasReorder() {
     event.preventDefault();
     cancelPhotoDrag();
     changeZoom(photos[selectedPhotoIndex], event.key === "-" ? 1 / 1.1 : 1.1);
-    scheduleRender();
+    scheduleRender({ keepPreviewPlan: true });
   });
 
   window.addEventListener("wheel", event => {
@@ -421,6 +464,7 @@ function bindCanvasReorder() {
     if (!cell) return;
     const photoIndex = cell.photoIndex;
     selectedPhotoIndex = photoIndex;
+    selectedCellIndex = lastPreviewPlan.cells.indexOf(cell);
     syncPhotoControls();
     elements.previewStage.focus({ preventScroll: true });
     const canCrop = lastPreviewPlan.photoFit === "cover";
@@ -662,8 +706,8 @@ async function renderSelection(keepPreviewPlan = false) {
     const hasOverflow = plan.overflowCount > 0;
     lastPlan = hasOverflow ? null : plan;
     lastPreviewPlan = previewPlan;
-    syncCropControls();
     elements.canvas.hidden = false;
+    syncPhotoControls();
     elements.emptyPreview.hidden = true;
     elements.saveFile.disabled = hasOverflow;
     elements.print.disabled = hasOverflow;
@@ -777,6 +821,7 @@ function showExportFailure(plan) {
 function disableExports(keepPreviewPlan = false) {
   lastPlan = null;
   if (!keepPreviewPlan) lastPreviewPlan = null;
+  syncSelectionOutline();
   elements.saveFile.disabled = true;
   elements.print.disabled = true;
 }
